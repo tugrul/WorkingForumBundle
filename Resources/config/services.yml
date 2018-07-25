@@ -83,6 +83,7 @@ services:
         arguments:
             - "%yosimitso_working_forum.post_flood_sec%"
             - "@translator"
+            - "@doctrine.orm.entity_manager"
         tags:
           - { name: doctrine.event_listener, event: prePersist}
 

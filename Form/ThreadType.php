@@ -63,6 +63,15 @@ class ThreadType extends AbstractType
                 );
             }
 
+            $builder->add(
+                'addSubscribtion',
+                 CheckboxType::class,
+                [
+                    'translation_domain' => 'YosimitsoWorkingForumBundle',
+                    'label'              => 'forum.subscribe',
+                    'required'           => false,
+                ]
+            );
 
         ;
     }

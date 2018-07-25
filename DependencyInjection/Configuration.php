@@ -51,7 +51,7 @@ class Configuration implements ConfigurationInterface
                 ->end()
                 ->integerNode('lock_thread_older_than')
                     ->isRequired()
-                    ->min(1)
+                    ->min(0)
                 ->end()
                 ->arrayNode('vote')
                     ->children()
