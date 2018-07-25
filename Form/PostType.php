@@ -8,6 +8,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
+use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 
 /**
  * Class PostType
@@ -41,8 +42,16 @@ class PostType extends AbstractType
                     'required' => false,
                     'label' => false
                 ]
+            )
+            ->add('addSubscription',
+                CheckboxType::class,
+                [
+                    'translation_domain' => 'YosimitsoWorkingForumBundle',
+                    'label' => 'forum.subscribe',
+                    'required' => false,
+                ]
             );
-    }
+;    }
 
     /**
      * @param OptionsResolver $resolver
@@ -50,7 +59,7 @@ class PostType extends AbstractType
     public function configureOptions(OptionsResolver $resolver)
     {
         $resolver->setDefaults([
-			'data_class' => 'Yosimitso\WorkingForumBundle\Entity\Post',
-		]);
+            'data_class' => 'Yosimitso\WorkingForumBundle\Entity\Post',
+        ]);
     }
 }

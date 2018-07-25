@@ -163,3 +163,7 @@ search:
 button:
     ok: ok
 
+subscription:
+    emailNotification:
+        title: [%forum.title%] New message in '%thread.label'
+

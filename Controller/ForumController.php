@@ -26,10 +26,15 @@ class ForumController extends BaseController
             ->getRepository('Yosimitso\WorkingForumBundle\Entity\Forum')
             ->findAll();
 
+        $parameters  = [ // PARAMETERS USED BY TEMPLATE
+            'dateFormat' => $this->container->getParameter('yosimitso_working_forum.date_format')
+            ];
+
         return $this->render(
             '@YosimitsoWorkingForum/Forum/index.html.twig',
             [
                 'list_forum' => $list_forum,
+                'parameters' => $parameters
             ]
         );
     }
@@ -57,9 +62,6 @@ class ForumController extends BaseController
                     'subforum' => $subforum,
                     'forbidden' => true,
                     'forbiddenMsg' => $this->authorization->getErrorMessage()
-
-
-                    //$this->getParameter('knp_paginator.default_options.page_name')
                 ]
             );
         }
@@ -91,7 +93,6 @@ class ForumController extends BaseController
                 'forbidden' => false,
                 'post_per_page' => $this->getParameter('yosimitso_working_forum.post_per_page'),
                 'page_prefix' => 'page'
-                //$this->getParameter('knp_paginator.default_options.page_name')
             ]
         );
     }

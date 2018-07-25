@@ -1,0 +1,7 @@
+<p>Hello {{ user.username }} !</p>
+<p>
+    {{ postUser.username }} has posted into {{ thread.label}}
+</p>
+<p>
+    See the message here : <a href="{{ path( 'workingforum_thread', {'subforum_slug' : thread.subforum.slug, 'thread_slug' : thread.slug}) }}">Go to the thread</a>
+</p>

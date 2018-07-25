@@ -13,15 +13,15 @@ class PostEvent
     private $translator;
     private $em;
     
-    public function __construct($floodLimit, $translator, $em)
+    public function __construct($floodLimit, $translator)
     {
         $this->floodLimit = $floodLimit;
         $this->translator = $translator;
-        $this->em = $em;
     }
     public function prePersist(LifecycleEventArgs $args)
     {
         $entity = $args->getEntity();
+        $this->em = $args->getEntityManager();
 
         if (!$entity instanceof Post) {
             return;
@@ -52,11 +52,6 @@ class PostEvent
 
         $entity->getUser()->setLastReplyDate($dateNow);
         return true;
-    }
-
-    private function notifySubscriptions($entity)
-    {
-       $notifs = $this->em->getRepository('YosimitsoWorkingForum:Subscriptions')->findByThreadId($entity->getId());
     }
 
     private function addSubscription($entity)

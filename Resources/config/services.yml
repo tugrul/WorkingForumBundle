@@ -78,12 +78,19 @@ services:
             - "%yosimitso_working_forum.file_upload%"
             - "@translator"
 
+    yosimitso_workingforum_util_subscription:
+        class: Yosimitso\WorkingForumBundle\Util\Subscription
+        arguments:
+            - "@doctrine.orm.entity_manager"
+            - "@mailer"
+            - "@translator"
+            - "%yosimitso_working_forum%"
+
     yosimitso_workingforum_listener.post:
         class: Yosimitso\WorkingForumBundle\Event\PostEvent
         arguments:
             - "%yosimitso_working_forum.post_flood_sec%"
             - "@translator"
-            - "@doctrine.orm.entity_manager"
         tags:
           - { name: doctrine.event_listener, event: prePersist}
 
