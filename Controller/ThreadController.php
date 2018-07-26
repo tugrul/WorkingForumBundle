@@ -160,6 +160,12 @@ class ThreadController extends BaseController
                         ['subforum_slug' => $subforum_slug, 'thread_slug' => $thread_slug, 'page' => $post_list->getPageCount() ]
                     )
                     );
+                } else {
+                    $this->flashbag->add(
+                        'error',
+                        $this->translator->trans('message.posted', [], 'YosimitsoWorkingForumBundle')
+                    );
+
                 }
             }
 

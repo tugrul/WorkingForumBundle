@@ -82,7 +82,11 @@ class Configuration implements ConfigurationInterface
                 ->integerNode('post_flood_sec')
                     ->isRequired()
                     ->min(1)
-
+                ->end()
+                ->scalarNode('site_title')
+                    ->isRequired()
+                    ->cannotBeEmpty()
+                ->end()
              ->end()
         ;
 
