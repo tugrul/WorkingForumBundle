@@ -45,10 +45,12 @@ class Subscription
                         ->setTo($notif->getUser()->getEmailAddress())
                         ->setBody(
                             $this->templating->render(
-                                '@YosimitsoWorkingForum/Email/notification_new_message_en.html.twig', ['user' => $notif->getUser(), 'thread' => $post->getThread(), 'post' => $post, 'postUser' => $post->getUser()]
+                                '@YosimitsoWorkingForum/Email/notification_new_message_en.html.twig',
+                                ['user' => $notif->getUser(), 'thread' => $post->getThread(), 'post' => $post, 'postUser' => $post->getUser()]
                             ),
                             'text/html');
 
+                    exit(dump($email));
                     if (!$this->mailer->send($email)) {
                         throw new \Exception('email wasn\'t sent');
                     }
