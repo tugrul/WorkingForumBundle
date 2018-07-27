@@ -40,21 +40,6 @@
           type="text/css" media="all"/>
         <link rel="stylesheet" href="{{ asset('bundles/yosimitsoworkingforum/markdown/css/bootstrap-markdown.min.css') }}"
           type="text/css" media="all"/>
-
-        <script>
-            jQuery(document).ready(function () {
-                jQuery(".wf_textarea_post").markdown({
-                    language: '{{ request.locale }}',
-                    onPreview: function (e) {
-                        var converter = new Showdown.converter({extensions: ['twitter', 'github']});
-                        var html = converter.makeHtml(nl2br(e.getContent()), '{{ asset('bundles/yosimitsoworkingforum/') }}');
-                        return html;
-                    },
-                    fullscreen: {enable: false}
-                });
-
-            });
-        </script>
         {% include '@YosimitsoWorkingForum/Thread/thread.js.twig' %}
 
         {# LOCK #}
