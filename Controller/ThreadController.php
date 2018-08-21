@@ -194,7 +194,14 @@ class ThreadController extends BaseController
             'fileUpload' => $this->container->getParameter('yosimitso_working_forum.file_upload'),
             ];
         $parameters['fileUpload']['maxSize'] = $this->fileUploaderUtil->getMaxSize();
-
+        
+        $actionsAvailables = [
+            'setResolved' => (!$anonymousUser) && (($this->user->getId() == $thread->getAuthor()->getId()) || $this->authorization->hasModeratorAuthorization()),
+            'quote' => (!$anonymousUser && !$thread->getLocked()),
+            'post' => (!$anonymousUser && !$autolock)
+            
+        ];
+        
         return $this->render('@YosimitsoWorkingForum/Thread/thread.html.twig',
             [
                 'subforum'    => $subforum,
@@ -209,6 +216,7 @@ class ThreadController extends BaseController
                 'allowModeratorDeleteThread' => $this->getParameter('yosimitso_working_forum.allow_moderator_delete_thread'),
                 'autolock' => $autolock,
                 'hasAlreadyVoted' => $hasAlreadyVoted,
+                'actionsAvailable' => $actionsAvailables
             ]
         );
 

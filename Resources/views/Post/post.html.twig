@@ -27,13 +27,17 @@
                             src="{{ asset('bundles/yosimitsoworkingforum/images/exclamation.png') }}"
                             class="wf_quote-img">
                 </a>
-                <a href="#"
-                   onclick="quote({{ post.id }},{{ post.user.id }}); return false;"
-                   title="{{ 'forum.quote' | trans }}"
-                >
-                    <img
-                            src="{{ asset('bundles/yosimitsoworkingforum/images/quote.png') }}"
-                            class="wf_quote-img"></a>
+                {% if actionsAvailable.quote %}
+                    <a href="#"
+                       onclick="quote({{ post.id }},{{ post.user.id }}); return false;"
+                       title="{{ 'forum.quote' | trans }}"
+                    >
+                        <img
+                                src="{{ asset('bundles/yosimitsoworkingforum/images/quote.png') }}"
+                                class="wf_quote-img"
+                        ></a>
+                {% endif %}
+
             {% endif %}
             {% if ((is_granted("ROLE_SUPER_ADMIN") or is_granted("ROLE_ADMIN") or is_granted("ROLE_MODERATOR"))) and post.moderateReason is empty %}
                 <a href="#"
