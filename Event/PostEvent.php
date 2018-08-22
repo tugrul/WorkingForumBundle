@@ -2,25 +2,55 @@
 
 namespace Yosimitso\WorkingForumBundle\Event;
 
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Event\LifecycleEventArgs;
+use Symfony\Component\Translation\TranslatorInterface;
 use Yosimitso\WorkingForumBundle\Entity\User;
 use Yosimitso\WorkingForumBundle\Entity\Post;
 use Yosimitso\WorkingForumBundle\Entity\Subscription as SubscriptionEntity;
+use Yosimitso\WorkingForumBundle\Util\Subscription;
 
+/**
+ * Class PostEvent
+ * @package Yosimitso\WorkingForumBundle\Event
+ */
 class PostEvent
 {
+    /**
+     * @var int
+     */
     private $floodLimit;
+    /**
+     * @var TranslatorInterface
+     */
     private $translator;
+    /**
+     * @var EntityManager
+     */
     private $em;
+    /**
+     * @var Subscription
+     */
     private $notificationUtil;
-    
-    public function __construct($floodLimit, $translator, $notificationUtil)
+
+    /**
+     * PostEvent constructor.
+     * @param int $floodLimit
+     * @param TranslatorInterface $translator
+     * @param Subscription $notificationUtil
+     */
+    public function __construct(int $floodLimit, TranslatorInterface $translator, Subscription $notificationUtil)
     {
         $this->floodLimit = $floodLimit;
         $this->translator = $translator;
         $this->notificationUtil = $notificationUtil;
 
     }
+
+    /**
+     * @param LifecycleEventArgs $args
+     * @throws \Exception
+     */
     public function prePersist(LifecycleEventArgs $args)
     {
         $entity = $args->getEntity();
@@ -37,6 +67,10 @@ class PostEvent
         return;
     }
 
+    /**
+     * @param LifecycleEventArgs $args
+     * @throws \Exception
+     */
     public function postPersist(LifecycleEventArgs $args)
     {
         $entity = $args->getEntity();
@@ -51,6 +85,12 @@ class PostEvent
         }
     }
 
+    /**
+     * Check if this new post is considered as flood
+     * @param $entity
+     * @return bool
+     * @throws \Exception
+     */
     private function isFlood($entity)
     {
         $dateNow = new \DateTime('now');
@@ -64,14 +104,20 @@ class PostEvent
         return true;
     }
 
+    /**
+     * User wants to subscribe to the thread
+     * @param $entity
+     * @throws \Doctrine\ORM\OptimisticLockException
+     */
     public function addSubscription($entity)
     {
-        $subscription = new SubscriptionEntity($entity->getThread(), $entity->getUser());
+        $checkSubscription = $this->em->getRepository('Yosimitso\WorkingForumBundle\Entity\Subscription')->findBy(['thread' => $entity->getThread(), 'user' => $entity->getUser()]);
 
-        $this->em->persist($subscription);
+        if (empty($checkSubscription) || is_null($checkSubscription)) {
+            $subscription = new SubscriptionEntity($entity->getThread(), $entity->getUser());
+            $this->em->persist($subscription);
+            $this->em->flush();
+        }
 
-        $this->em->flush();
     }
-
-
 }
