@@ -27,7 +27,7 @@
                             src="{{ asset('bundles/yosimitsoworkingforum/images/exclamation.png') }}"
                             class="wf_quote-img">
                 </a>
-                {% if actionsAvailable.quote %}
+                {% if actionsAvailables.quote %}
                     <a href="#"
                        onclick="quote({{ post.id }},{{ post.user.id }}); return false;"
                        title="{{ 'forum.quote' | trans }}"
@@ -52,7 +52,7 @@
             {% if post.moderateReason is empty %}
                 {{ post.content |  quote | markdown | replace({'\n':'<br />'})| smiley |  raw }}
             {% else %}
-                <p class="wf_moderate">{{ 'forum.post_moderated' |trans }} {{ post.moderateReason }}</p>
+                <p class="wf_moderate">{{ 'forum.post_moderated' | trans }} {{ post.moderateReason }}</p>
             {% endif %}
         </div>
         {# POST VOTE #}

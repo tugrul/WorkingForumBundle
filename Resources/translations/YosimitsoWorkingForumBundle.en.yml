@@ -72,6 +72,9 @@ forum:
     forum_rules: Forum rules
     no_rules_available: The forum rules are not available yet
     switch_lang: Switch language
+    subscribe: Notify me of new posts
+    already_subscribed: You'll be notified of new posts
+    cancel_subscription: Cancel subscription
 
 pagination:
     previous: Previous

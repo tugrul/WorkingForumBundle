@@ -51,7 +51,12 @@
             </div>
         </div>
     {% endif %}
-    <p>{{ form_widget(form.addSubscription) }} {{ form_label(form.addSubscription) }}</p>
+    {% if form.addSubscription is defined %}
+        <p>{{ form_widget(form.addSubscription) }} {{ form_label(form.addSubscription) }}</p>
+    {% else %}
+        <p>{{ 'forum.already_subscribed' | trans }}, <a href="">{{ 'cancel_subscription' | trans }}</a></p>
+    {% endif %}
+
     {% block extraInput %}
     {% endblock %}
     <p><input type="submit" value="{{ submitLabelKey | trans }}"

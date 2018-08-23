@@ -88,9 +88,9 @@ class Subscription
                             'text/html');
 
 //                    exit(dump($email));
-                    if (!$this->mailer->send($email)) {
-                        throw new \Exception('email wasn\'t sent');
-                    }
+//                    if (!$this->mailer->send($email)) {
+//                        throw new \Exception('email wasn\'t sent');
+//                    }
                 }
             }
             return true;

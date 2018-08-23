@@ -42,8 +42,10 @@ class PostType extends AbstractType
                     'required' => false,
                     'label' => false
                 ]
-            )
-            ->add('addSubscription',
+            );
+        
+        if ($options['canSubscribeThread']) {
+            $builder->add('addSubscription',
                 CheckboxType::class,
                 [
                     'translation_domain' => 'YosimitsoWorkingForumBundle',
@@ -51,6 +53,9 @@ class PostType extends AbstractType
                     'required' => false,
                 ]
             );
+        }
+
+
 ;    }
 
     /**
@@ -58,6 +63,10 @@ class PostType extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
+        $resolver->setRequired([
+            'canSubscribeThread'
+        ]);
+
         $resolver->setDefaults([
             'data_class' => 'Yosimitso\WorkingForumBundle\Entity\Post',
         ]);

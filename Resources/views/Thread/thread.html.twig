@@ -13,7 +13,7 @@
             </ul>
         </div>
     {% else %}
-        {% if actionsAvailable.setResolved %}
+        {% if actionsAvailables.setResolved %}
             <p><a class="wf_button"
                   href="{{ path('workingforum_resolve_thread',{'subforum_slug' : subforum.slug, 'thread_slug' : thread.slug}) }}">{{ 'forum.now_resolved' | trans }}</a>
             </p>
@@ -48,7 +48,7 @@
             </a>
         </p>
     {% else %}
-    {% if actionsAvailable.post %}
+    {% if actionsAvailables.post %}
         <p>
             <a class="wf_button" href="#wf_new_post">{{ 'forum.reply' | trans }}</a>
         </p>
@@ -96,7 +96,7 @@
             <h2>{{ thread.sublabel }}</h2>
 
             {% for post in post_list %}
-                {% include '@YosimitsoWorkingForum/Post/post.html.twig' with {'post': post, 'thread': thread, 'parameters': parameters, 'hasAlreadyVoted': hasAlreadyVoted, 'autolock': autolock, 'loop': loop, 'actionsAvailable': actionsAvailable} only %}
+                {% include '@YosimitsoWorkingForum/Post/post.html.twig' with {'post': post, 'thread': thread, 'parameters': parameters, 'hasAlreadyVoted': hasAlreadyVoted, 'autolock': autolock, 'loop': loop, 'actionsAvailables': actionsAvailables} only %}
             {% endfor %}
 
             {{ knp_pagination_render(post_list) }}

@@ -71,6 +71,9 @@ forum:
     error_flood: Le flood est interdit, merci d'attendre %second% secondes entre chaque message
     no_rules_available: Les règle du forum ne sont pas encore disponibles
     switch_lang: Changer de langue
+    subscribe: M'avertir des nouvelles réponses
+    already_subscribed: Vous serez averti des nouvelles réponses
+    cancel_subscription: Annuler l'abonnement
 
 pagination:
     previous: Précédent

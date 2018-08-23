@@ -111,9 +111,8 @@ class PostEvent
      */
     public function addSubscription($entity)
     {
-        $checkSubscription = $this->em->getRepository('Yosimitso\WorkingForumBundle\Entity\Subscription')->findBy(['thread' => $entity->getThread(), 'user' => $entity->getUser()]);
-
-        if (empty($checkSubscription) || is_null($checkSubscription)) {
+        $checkSubscription = $this->em->getRepository('YosimitsoWorkingForumBundle:Subscription')->findBy(['thread' => $entity->getThread(), 'user' => $entity->getUser()]);
+        if (empty($checkSubscription) || is_null($checkSubscription)) { // NOT ALREADY SUBSCRIBED
             $subscription = new SubscriptionEntity($entity->getThread(), $entity->getUser());
             $this->em->persist($subscription);
             $this->em->flush();

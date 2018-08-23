@@ -69,7 +69,8 @@ class ThreadController extends BaseController
             $listSmiley = $this->smileyTwigExtension->getListSmiley(); // Smileys available for markdown
 
             $my_post = new Post($this->user, $thread);
-            $form = $this->createForm(PostType::class, $my_post); // create form for posting
+            $canSubscribeThread = (empty($this->em->getRepository('YosimitsoWorkingForumBundle:Subscription')->findBy(['thread' => $thread, 'user' => $this->user])));
+            $form = $this->createForm(PostType::class, $my_post, ['canSubscribeThread' => $canSubscribeThread]); // create form for posting
             $form->handleRequest($request);
 
             if ($form->isSubmitted()) { // USER SUBMIT HIS POST
@@ -198,7 +199,8 @@ class ThreadController extends BaseController
         $actionsAvailables = [
             'setResolved' => (!$anonymousUser) && (($this->user->getId() == $thread->getAuthor()->getId()) || $this->authorization->hasModeratorAuthorization()),
             'quote' => (!$anonymousUser && !$thread->getLocked()),
-            'post' => (!$anonymousUser && !$autolock)
+            'post' => (!$anonymousUser && !$autolock),
+            'subscribe' => $canSubscribeThread
             
         ];
         
@@ -216,7 +218,7 @@ class ThreadController extends BaseController
                 'allowModeratorDeleteThread' => $this->getParameter('yosimitso_working_forum.allow_moderator_delete_thread'),
                 'autolock' => $autolock,
                 'hasAlreadyVoted' => $hasAlreadyVoted,
-                'actionsAvailable' => $actionsAvailables
+                'actionsAvailables' => $actionsAvailables
             ]
         );
 
