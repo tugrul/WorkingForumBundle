@@ -6,6 +6,7 @@
 <p>
     {{ postUser.username }} has posted into <em>{{ thread.label }}</em>, see the message below :
 </p>
+<hr />
 <p>
     {{ post.content | quote | markdown | replace({'\n':'<br />'})| smiley | raw }}
 </p>
