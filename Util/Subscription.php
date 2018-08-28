@@ -59,7 +59,7 @@ class Subscription
         $this->siteTitle = $siteTitle;
         $this->senderAddress = $senderAddress;
         $this->templating = $templating;
-        
+
     }
 
     /**
@@ -74,23 +74,30 @@ class Subscription
         $notifs = $this->em->getRepository('YosimitsoWorkingForumBundle:Subscription')->findByThread($post->getThread()->getId());
 
         if (!is_null($notifs)) {
+            
             foreach ($notifs as $notif) {
-                if (!empty($notif->getUser()->getEmailAddress())) {
-                    $email = (new \Swift_Message())
-                        ->setSubject($this->translator->trans('subscription.emailNotification.subject', $emailTranslation, 'YosimitsoWorkingForumBundle'))
-                        ->setFrom($this->senderAddress)
-                        ->setTo($notif->getUser()->getEmailAddress())
-                        ->setBody(
-                            $this->templating->render(
-                                '@YosimitsoWorkingForum/Email/notification_new_message_en.html.twig',
-                                ['user' => $notif->getUser(), 'thread' => $post->getThread(), 'post' => $post, 'postUser' => $post->getUser()]
-                            ),
-                            'text/html');
+                try {
+                    if (!empty($notif->getUser()->getEmailAddress())) {
+                        $email = (new \Swift_Message())
+                            ->setSubject($this->translator->trans('subscription.emailNotification.subject', $emailTranslation, 'YosimitsoWorkingForumBundle'))
+                            ->setFrom($this->senderAddress)
+                            ->setTo($notif->getUser()->getEmailAddress())
+                            ->setBody(
+                                $this->templating->render(
+                                    '@YosimitsoWorkingForum/Email/notification_new_message_en.html.twig',
+                                    $emailTranslation
+                                ),
+                                'text/html');
+                        $this->mailer->SMTPDebug = 4;
 
-                    if (!$this->mailer->send($email)) {
-                        throw new \Exception('email wasn\'t sent');
+                        $this->mailer->send($email);
                     }
+                } catch (phpmailerException $e) {
+                    throw new \Exception($e->errorMessage()); //Pretty error messages from PHPMailer
+                } catch (Exception $e) {
+                    throw new \Exception($e->getMessage()); //Boring error messages from anything else!
                 }
+
             }
             return true;
         }
@@ -120,10 +127,14 @@ class Subscription
     private function getEmailTranslation($subforum, $thread, $post, $user)
     {
         return [
-            'site.title' => $this->siteTitle,
-            'subforum.name' => $subforum->getName(),
-            'thread.label' => $thread->getLabel(),
-            'thread.author' => $thread->getAuthor()->getUsername(),
+            'siteTitle' => $this->siteTitle,
+            'subforumName' => $subforum->getName(),
+            'threadLabel' => $thread->getLabel(),
+            'threadAuthor' => $thread->getAuthor()->getUsername(),
+            'user' => $user,
+            'thread' => $post->getThread(),
+            'post' => $post,
+            'postUser' => $post->getUser()
         ];
     }
 }

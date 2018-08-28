@@ -168,5 +168,5 @@ button:
 
 subscription:
     emailNotification:
-        title: "[%forum.title%] New message in '%thread.label'"
+        title: "[%forumTitle%] New message in '%threadLabel%'"
 
