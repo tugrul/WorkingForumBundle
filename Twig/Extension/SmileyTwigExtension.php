@@ -71,7 +71,12 @@ class SmileyTwigExtension extends \Twig_Extension
     {
         $request = $request_stack->getCurrentRequest();
         $this->asset = $asset;
-        $this->basePath = $request->getSchemeAndHttpHost();
+
+        if ($request instanceof Request) {
+            $this->basePath = $request->getSchemeAndHttpHost();
+        } else {
+            $this->basePath = '';
+        }
     }
 
     /**
