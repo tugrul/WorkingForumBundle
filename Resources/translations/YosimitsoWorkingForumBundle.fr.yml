@@ -154,6 +154,7 @@ message:
         restricted_action: Vous n'êtes pas autorisé à faire cela
         restricted_access: Vous n'êtes pas autorisé à lire ce sous-forum
         something_wrong: Désolé mais quelque chose ne s'est pas passé correctement
+        post_error: Your post is invalid
     thread_deleted: Le sujet a été supprimé avec succès
 search:
     results_for: Résultats pour "%keywords%"
