@@ -30,6 +30,7 @@ class ForumController extends BaseController
             '@YosimitsoWorkingForum/Forum/index.html.twig',
             [
                 'list_forum' => $list_forum,
+                'parameters' => $parameters
             ]
         );
     }
@@ -51,15 +52,12 @@ class ForumController extends BaseController
             ->findOneBySlug($subforum_slug);
         if (!$this->authorization->hasSubforumAccess($subforum)) {
 
-            return $this->render(
+            return $this->templating->renderResponse(
                 '@YosimitsoWorkingForum/Forum/thread_list.html.twig',
                 [
                     'subforum' => $subforum,
                     'forbidden' => true,
                     'forbiddenMsg' => $this->authorization->getErrorMessage()
-
-
-                    //$this->getParameter('knp_paginator.default_options.page_name')
                 ]
             );
         }
@@ -82,7 +80,7 @@ class ForumController extends BaseController
         );
 
 
-        return $this->render(
+        return $this->templating->renderResponse(
             '@YosimitsoWorkingForum/Forum/thread_list.html.twig',
             [
                 'subforum' => $subforum,
@@ -91,7 +89,6 @@ class ForumController extends BaseController
                 'forbidden' => false,
                 'post_per_page' => $this->getParameter('yosimitso_working_forum.post_per_page'),
                 'page_prefix' => 'page'
-                //$this->getParameter('knp_paginator.default_options.page_name')
             ]
         );
     }
@@ -112,7 +109,7 @@ class ForumController extends BaseController
 
         $form = $this->createForm(RulesType::class, null);
         
-        return $this->render(
+        return $this->templating->renderResponse(
             '@YosimitsoWorkingForum/Forum/rules.html.twig',
             [
                 'rules' => $rules,

@@ -9,6 +9,7 @@ use Yosimitso\WorkingForumBundle\Entity\Post;
 use Yosimitso\WorkingForumBundle\Entity\Thread;
 use Yosimitso\WorkingForumBundle\Entity\PostReport;
 use Yosimitso\WorkingForumBundle\Entity\File;
+use Yosimitso\WorkingForumBundle\Entity\Subscription as EntitySubscription;
 use Yosimitso\WorkingForumBundle\Form\MoveThreadType;
 use Yosimitso\WorkingForumBundle\Form\PostType;
 use Yosimitso\WorkingForumBundle\Form\ThreadType;
@@ -17,6 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Yosimitso\WorkingForumBundle\Util\Slugify;
 use Yosimitso\WorkingForumBundle\Controller\BaseController;
+use Yosimitso\WorkingForumBundle\Util\Subscription;
 use Yosimitso\WorkingForumBundle\Util\Thread as ThreadUtil;
 use Yosimitso\WorkingForumBundle\Util\FileUploader as FileUploadUtil;
 use Yosimitso\WorkingForumBundle\Twig\Extension\SmileyTwigExtension;
@@ -59,7 +61,7 @@ class ThreadController extends BaseController
         $anonymousUser = (is_null($this->user)) ? true : false;
 
         if (!$this->authorization->hasSubforumAccess($subforum)) { // CHECK IF USER HAS AUTHORIZATION TO VIEW THIS THREAD
-            return $this->render('@YosimitsoWorkingForum/Thread/thread.html.twig',
+            return $this->templating->renderResponse('@YosimitsoWorkingForum/Thread/thread.html.twig',
                 [
                     'subforum'    => $subforum,
                     'thread'      => $thread,
@@ -193,7 +195,7 @@ class ThreadController extends BaseController
             ];
         $parameters['fileUpload']['maxSize'] = $this->fileUploaderUtil->getMaxSize();
 
-        return $this->render('@YosimitsoWorkingForum/Thread/thread.html.twig',
+        return $this->templating->renderResponse('@YosimitsoWorkingForum/Thread/thread.html.twig',
             [
                 'subforum'    => $subforum,
                 'thread'      => $thread,
@@ -299,7 +301,7 @@ class ThreadController extends BaseController
         ];
         $parameters['fileUpload']['maxSize'] = $this->fileUploaderUtil->getMaxSize();
 
-        return $this->render('@YosimitsoWorkingForum/Thread/new.html.twig',
+        return $this->templating->renderResponse('@YosimitsoWorkingForum/Thread/new.html.twig',
             [
                 'subforum'   => $subforum,
                 'form'       => $form->createView(),
