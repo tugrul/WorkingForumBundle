@@ -29,8 +29,7 @@ class ForumController extends BaseController
         return $this->render(
             '@YosimitsoWorkingForum/Forum/index.html.twig',
             [
-                'list_forum' => $list_forum,
-                'parameters' => $parameters
+                'list_forum' => $list_forum
             ]
         );
     }
