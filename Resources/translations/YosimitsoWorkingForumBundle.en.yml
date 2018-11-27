@@ -159,6 +159,7 @@ message:
     thread_deleted: The thread was succesfully deleted
     subscription_cancelled: You are unsubscripted
     generic_error: An error occured
+    post_saved_draft: Your post has been saved in drafts at
 
 search:
     results_for: Results for "%keywords%"
