@@ -26,9 +26,10 @@
             <div class="wf_empty_forum">{{ forbiddenMsg | trans }}</div>
         </div>
     {% else %}
-
+        {% include '@YosimitsoWorkingForum/Thread/storeJs.html.twig' %}
         <script src="{{ asset('bundles/yosimitsoworkingforum/js/jquery.min.js') }}"></script>
         <script src="{{ asset('bundles/yosimitsoworkingforum/js/smiley.js') }}"></script>
+        <script src="{{ asset('bundles/yosimitsoworkingforum/js/thread.js') }}"></script>
         <script src="{{ asset('bundles/yosimitsoworkingforum/markdown/js/bootstrap-markdown.js') }}"></script>
         <script src="{{ asset('bundles/yosimitsoworkingforum/showdown/src/showdown.js') }}"></script>
         <script src="{{ asset('bundles/yosimitsoworkingforum/showdown/src/extensions/twitter.js') }}"></script>
@@ -38,7 +39,6 @@
           type="text/css" media="all"/>
         <link rel="stylesheet" href="{{ asset('bundles/yosimitsoworkingforum/markdown/css/bootstrap-markdown.min.css') }}"
           type="text/css" media="all"/>
-        {% include '@YosimitsoWorkingForum/Thread/thread.js.twig' %}
 
         {# LOCK #}
     {% if thread.locked %}

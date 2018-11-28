@@ -243,7 +243,6 @@ Showdown.converter = function (converter_options) {
         var pattern = ':('+listSmiley.join('|')+'):';
         
         text = text.replace(new RegExp(pattern,'g'), '<img src="'+basePath+'images/smiley/$1.png" />');
-        console.log(text);
         return text;
     };
 
