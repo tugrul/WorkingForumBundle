@@ -54,11 +54,20 @@ jQuery(document).ready(function () {
     });
 
     /**
+     * Clear post editor content draft
+     */
+    jQuery('#wf_submit_post_editor').click(function () {
+        if (getCookie('post_editor_' + threadId)) {
+            eraseCookie('post_editor_' + threadId);
+        }
+    });
+
+    /**
      * Get a cookie by its name
      * @param name
-     * @return {*}
+     * @return string
      */
-    getCookie = function(name) {
+    getCookie = function (name) {
         var nameEQ = name + "=";
         var ca = document.cookie.split(';');
         for (var i = 0; i < ca.length; i++) {
@@ -76,7 +85,7 @@ jQuery(document).ready(function () {
     /**
      * Get the post draft saved for this thread
      */
-    getSavedPostEditor = function() {
+    getSavedPostEditor = function () {
         var postEditor = document.getElementsByClassName('wf_textarea_post')[0];
         var threadId = document.getElementsByClassName('wf_thread')[0].getAttribute('data-id');
         var postSaved = getCookie('post_editor_' + threadId);
@@ -91,7 +100,7 @@ jQuery(document).ready(function () {
      * @param value
      * @param days
      */
-    setCookie = function(name, value, days) {
+    setCookie = function (name, value, days) {
         var expires = "";
         if (days) {
             var date = new Date();
@@ -105,7 +114,7 @@ jQuery(document).ready(function () {
      * Erase a cookie
      * @param name
      */
-    eraseCookie = function(name) {
+    eraseCookie = function (name) {
         document.cookie = name + '=; Max-Age=-99999999;';
     }
 
@@ -116,7 +125,7 @@ jQuery(document).ready(function () {
     /**
      * Save the psot editor content as draft
      */
-    savePostEditor = function() {
+    savePostEditor = function () {
         var postEditor = document.getElementsByClassName('wf_textarea_post')[0];
 
         if (!postEditor || !postEditor.value) {
@@ -129,7 +138,10 @@ jQuery(document).ready(function () {
         } else {
             jQuery('.md-header').after('<div id="saved_draft_msg" class="wf_small_message">' + storeJs.trans['message.post_saved_draft'] + ' ' + dateSaved.getHours() + ':' + dateSaved.getMinutes() + '</div>');
         }
+    }
 
+    clearPostEditorDraft = function () {
+        eraseCookie('post_editor_' + storeJs.threadId);
     }
 
     /**
@@ -137,7 +149,7 @@ jQuery(document).ready(function () {
      * @param {string} str
      * @param {bool} is_xhtml
      */
-    nl2br = function(str, is_xhtml) {
+    nl2br = function (str, is_xhtml) {
         var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
         return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
     }
@@ -146,7 +158,7 @@ jQuery(document).ready(function () {
      * Quote a message into the post editor
      * @param {int} postId
      */
-    quote = function(postId) {
+    quote = function (postId) {
         jQuery('.wf_textarea_post').val(jQuery('.wf_textarea_post').val() + "[quote=" + postId + "]");
         jQuery('.wf_textarea_post').focus();
     }
@@ -155,7 +167,7 @@ jQuery(document).ready(function () {
      * Report a post
      * @param {string} url
      */
-    report = function(url) {
+    report = function (url) {
         if (!confirm(storeJs.trans['forum.confirm_report'])) {
             return false;
         }
@@ -180,7 +192,7 @@ jQuery(document).ready(function () {
      * Moderate (censor content) of a post (modo/admin)
      * @param {int} id
      */
-    moderate = function(id) {
+    moderate = function (id) {
         var reason = prompt(storeJs.trans['admin.report.why']);
         if (reason != null && reason.trim() != '') {
             jQuery.ajax({
@@ -207,7 +219,7 @@ jQuery(document).ready(function () {
      * @param {int} id
      * @param {HTMLObjectElement} element
      */
-    voteUp = function(id, element) {
+    voteUp = function (id, element) {
         jQuery.ajax({
             type: "POST",
             url: storeJs.routes.workingforum_vote_up,
@@ -234,7 +246,7 @@ jQuery(document).ready(function () {
      * @param {int} id
      */
 
-    showEnclosed = function(arrow, id) {
+    showEnclosed = function (arrow, id) {
         jQuery('#wf_enclosed_files_' + id).slideDown();
         jQuery(arrow).remove();
     }
@@ -242,7 +254,7 @@ jQuery(document).ready(function () {
     /**
      * Subscribe on new message
      */
-    addSubscription = function() {
+    addSubscription = function () {
         jQuery.ajax({
             type: "GET",
             url: storeJs.routes.workingforum_add_subscription.replace('%thread.id%', storeJs.threadId),
@@ -261,7 +273,7 @@ jQuery(document).ready(function () {
     /**
      * Cancel subscription on new message
      */
-    cancelSubscription = function() {
+    cancelSubscription = function () {
         jQuery.ajax({
             type: "GET",
             url: storeJs.routes.workingforum_cancel_subscription.replace('%thread.id%', storeJs.threadId),
