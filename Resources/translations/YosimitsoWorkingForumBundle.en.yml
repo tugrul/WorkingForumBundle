@@ -161,6 +161,7 @@ message:
     subscription_cancelled: You are unsubscripted
     generic_error: An error occured
     post_saved_draft: Your post has been saved in drafts at
+    quote_unavailable: Quoted message with id %id% can't be displayed, please check it
 
 search:
     results_for: Results for "%keywords%"

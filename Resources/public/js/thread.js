@@ -1,6 +1,7 @@
 jQuery(document).ready(function () {
 
     storeJs.threadId = document.getElementsByClassName('wf_thread')[0].getAttribute('data-id');
+
     /**
      * Initialize the post editor
      */
@@ -56,9 +57,14 @@ jQuery(document).ready(function () {
     /**
      * Clear post editor content draft
      */
-    jQuery('#wf_submit_post_editor').click(function () {
-        if (getCookie('post_editor_' + threadId)) {
-            eraseCookie('post_editor_' + threadId);
+    jQuery('#wf_form_post').submit(function (e) {
+        console.log('erase1');
+        if (getCookie('post_editor_' + storeJs.threadId)) {
+            e.preventDefault();
+            clearInterval(saveTimeout);
+            console.log('erase');
+            eraseCookie('post_editor_' + storeJs.threadId);
+            this.submit();
         }
     });
 
@@ -115,15 +121,18 @@ jQuery(document).ready(function () {
      * @param name
      */
     eraseCookie = function (name) {
-        document.cookie = name + '=; Max-Age=-99999999;';
+        var d = new Date(); //Create an date object
+        d.setTime(d.getTime() - (1000*60*60*24)); //Set the time to the past. 1000 milliseonds = 1 second
+        var expires = "expires=" + d.toGMTString(); //Compose the expirartion date
+        window.document.cookie = name+"="+"; "+expires+"; path=/";//Set the cookie with name and the expiration date
     }
 
-    setInterval(function () {
+    var saveTimeout = setInterval(function () {
         savePostEditor()
     }, 30000);
 
     /**
-     * Save the psot editor content as draft
+     * Save the post editor content as draft
      */
     savePostEditor = function () {
         var postEditor = document.getElementsByClassName('wf_textarea_post')[0];
@@ -131,17 +140,13 @@ jQuery(document).ready(function () {
         if (!postEditor || !postEditor.value) {
             return;
         }
-        setCookie('post_editor_' + storeJs.threadId, postEditor.value);
+        setCookie('post_editor_' + storeJs.threadId, postEditor.value, 30);
         var dateSaved = new Date();
         if (jQuery('#saved_draft_msg').length) {
             jQuery('#saved_draft_msg').html(storeJs.trans['message.post_saved_draft'] + ' ' + dateSaved.getHours() + ':' + dateSaved.getMinutes());
         } else {
             jQuery('.md-header').after('<div id="saved_draft_msg" class="wf_small_message">' + storeJs.trans['message.post_saved_draft'] + ' ' + dateSaved.getHours() + ':' + dateSaved.getMinutes() + '</div>');
         }
-    }
-
-    clearPostEditorDraft = function () {
-        eraseCookie('post_editor_' + storeJs.threadId);
     }
 
     /**

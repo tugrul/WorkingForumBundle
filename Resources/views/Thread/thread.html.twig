@@ -83,7 +83,7 @@
                         <p class="wf_post_a_message">{{ 'forum.thread_too_old_locked' | trans }}</p>
                     </div>
                 {% else %}
-                    {{ form_start(form) }}
+                    {{ form_start(form, {'attr': {'id': 'wf_form_post'}}) }}
                     {% embed '@YosimitsoWorkingForum/Post/textarea.html.twig' with {'listSmiley': listSmiley, 'form': form, 'parameters': parameters, 'submitLabelKey': 'forum.submit_post'} only %}
                         {% block header %}
                             <p class="wf_post_a_message">{{ 'forum.post_a_message' | trans([], 'YosimitsoWorkingForumBundle') }}</p>
