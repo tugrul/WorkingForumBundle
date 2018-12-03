@@ -31,12 +31,12 @@ jQuery(document).ready(function () {
                 return false;
             }
 
-            var threadId = jQuery('.wf_thread').attr('data-id');
+
             jQuery.ajax({
                 type: "POST",
                 url: storeJs.routes.workingforum_move_thread,
                 crossDomain: false,
-                data: 'threadId=' + thread.id + '&target=' + target,
+                data: 'threadId=' + storeJs.threadId + '&target=' + target,
                 dataType: 'json',
                 async: false,
                 success: function (res) {
@@ -209,7 +209,7 @@ jQuery(document).ready(function () {
                 async: false,
                 success: function (res) {
                     if (res == 'ok') {
-                        jQuery('#wf_post' + id).html('<p class="wf_moderate">' + storeJs.trans['forum.post_moderated'] + ' ' + reason + '</p>');
+                        jQuery('#wf_post\\[' + id+'\\] .wf_post_content').html('<p class="wf_moderate">' + storeJs.trans['forum.post_moderated'] + ' ' + reason + '</p>');
                     }
                 }
             });
