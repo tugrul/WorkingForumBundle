@@ -2,15 +2,25 @@
 
 namespace Yosimitso\WorkingForumBundle\Controller;
 
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use Yosimitso\WorkingForumBundle\Entity\Rules;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
+use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Validator\Constraints;
+
+use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
+use Symfony\Component\Routing\Annotation\Route;
+
+use Symfony\Component\Translation\TranslatorInterface;
 use Yosimitso\WorkingForumBundle\Form\AdminForumType;
 use Symfony\Component\HttpFoundation\Request;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
 use Symfony\Component\HttpFoundation\Response;
-use Yosimitso\WorkingForumBundle\Form\RulesType;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Yosimitso\WorkingForumBundle\Form\RulesEditType;
-use Yosimitso\WorkingForumBundle\Twig\Extension\SmileyTwigExtension;
+
+use Yosimitso\WorkingForumBundle\Entity\{Forum, PostReportReview, Subforum, Rules, PostReport, Post, Thread, User};
+
 
 /**
  * Class AdminController
@@ -18,444 +28,362 @@ use Yosimitso\WorkingForumBundle\Twig\Extension\SmileyTwigExtension;
  * @package Yosimitso\WorkingForumBundle\Controller
  *
  * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+ * @Route("/admin", name="admin_")
  */
 class AdminController extends BaseController
 {
 
-    private $smileyTwigExtension;
+    /**
+     * @var EntityManagerInterface
+     */
+    private $entityManager;
 
-    public function __construct(SmileyTwigExtension $smileyTwigExtension)
+    /**
+     * @var TranslatorInterface
+     */
+    private $translator;
+
+    /**
+     * AdminController constructor.
+     * @param EntityManagerInterface $entityManager
+     * @param TranslatorInterface $translator
+     */
+
+    public function __construct(EntityManagerInterface $entityManager, TranslatorInterface $translator)
     {
-        $this->smileyTwigExtension = $smileyTwigExtension;
+        $this->entityManager = $entityManager;
+        $this->translator = $translator;
     }
 
 
-    /** @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+    /**
+     * @Route(name="index")
+     * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     *
      * @return Response
      * @throws \Exception
      */
     public function indexAction()
     {
-        $list_forum = $this->em->getRepository('YosimitsoWorkingForumBundle:Forum')->findAll();
+        $entityManager = $this->entityManager;
 
-        $settingsList = [
-            ['label' => 'allow_anonymous_read', 'varType' => 'boolean'],
-            ['label' => 'allow_moderator_delete_thread', 'varType' => 'boolean'],
-            ['label' => 'theme_color', 'varType' => 'string'],
-            ['label' => 'lock_thread_older_than', 'varType' => 'number'],
-            ['label' => 'post_flood_sec', 'varType' => 'number'],
-            ['label' => 'vote', 'key' => 'threshold_useful_post', 'varType' => 'number'],
-            ['label' => 'file_upload.title', 'group' => true],
-            ['label' => 'file_upload', 'key' => 'enable', 'varType' => 'boolean'],
-            ['label' => 'file_upload', 'key' => 'max_size_ko', 'varType' => 'number'],
-            ['label' => 'file_upload', 'key' => 'accepted_format', 'varType' => 'array'],
-            ['label' => 'file_upload', 'key' => 'preview_file', 'varType' => 'boolean'],
+        $forumList = $entityManager->getRepository(Forum::class)->findAll();
+
+        $rulesList = $entityManager->getRepository(Rules::class)->findAll();
 
 
-        ];
-
-        $settings_render = $this->renderSettings($settingsList);
         $newPostReported = count(
-            $this->em->getRepository('YosimitsoWorkingForumBundle:PostReport')
-                ->findBy(['processed' => null])
+            $entityManager->getRepository(PostReport::class)
+                ->getNonReviewed()
         );
 
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/main.html.twig',
-            [
-                'list_forum' => $list_forum,
-                'settings_render' => $settings_render,
-                'newPostReported' => $newPostReported,
-            ]
-        );
+        return $this->render('@YosimitsoWorkingForum/Admin/main.html.twig', [
+            'list_forum' => $forumList,
+            'rulesList' => $rulesList,
+            'newPostReported' => $newPostReported,
+        ]);
     }
 
     /**
-     * @Security("has_role('ROLE_ADMIN')")
-     * @param Request $request
-     * @param         $id
+     * @Route("/forum/edit/{id}", name="forum_edit", requirements={"id": "\d+"})
      *
-     * @return \Symfony\Component\HttpFoundation\RedirectResponse|Response
+     * @Security("has_role('ROLE_ADMIN')")
+     *
+     * @param Request $request
+     * @param string $id
+     *
+     * @return RedirectResponse|Response
      * @throws \Exception
      */
-    public function editAction(Request $request, $id)
+    public function editAction(string $id, Request $request)
     {
-        $forum = $this->em->getRepository('YosimitsoWorkingForumBundle:Forum')->find($id);
+        $entityManager = $this->entityManager;
 
-        $statistics = ['nbThread' => 0, 'nbPost' => 0];
-        foreach ($forum->getSubforum() as $subforum) {
-            $statistics['nbThread'] += $subforum->getNbThread();
-            $statistics['nbPost'] += $subforum->getNbPost();
+        $forum = $entityManager->getRepository(Forum::class)->find($id);
+
+        if (empty($forum)) {
+            throw $this->createNotFoundException('Forum not found by id: ' . $id);
         }
 
-        $statistics['averagePostThread'] = ($statistics['nbThread'] > 0) ? $statistics['nbPost'] / $statistics['nbThread'] : 0;
         $form = $this->createForm(AdminForumType::class, $forum);
 
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
 
-            foreach ($forum->getSubforum() as $subforum) {
-                $subforum->setForum($forum);
-            }
-            $this->em->persist($forum);
-            $this->em->flush();
+            $entityManager->persist($forum);
+            $entityManager->flush();
 
-            $this->flashbag->add(
-                'success',
-                $this->translator->trans('message.saved', [], 'YosimitsoWorkingForumBundle')
-            );
+            $this->addFlash('success', $this->translator->trans('message.saved', [],
+                'YosimitsoWorkingForumBundle'));
 
-            return $this->redirect($this->generateUrl('workingforum_admin'));
-
+            return $this->redirectToRoute('workingforum_admin_forum_edit', [
+                'id' => $forum->getId()]);
         }
 
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Forum/form.html.twig',
-            [
-                'forum' => $forum,
-                'form' => $form->createView(),
-                'statistics' => $statistics,
-            ]
-        );
+        $threadCount = $entityManager->getRepository(Thread::class)->getCountByForum($forum);
+        $postCount = $entityManager->getRepository(Post::class)->getCountByForum($forum);
+
+        return $this->render('@YosimitsoWorkingForum/Admin/Forum/form.html.twig',[
+            'forum' => $forum,
+            'form' => $form->createView(),
+            'statistics' => [
+                'thread_count' => $threadCount,
+                'post_count' => $postCount,
+                'thread_post_ratio' => $postCount > 0 ? ($postCount / $threadCount) : 0
+            ],
+        ]);
     }
 
     /**
+     * @Route("/forum/add", name="forum_add")
      * @Security("has_role('ROLE_ADMIN')")
+     *
      * @param Request $request
      *
-     * @return \Symfony\Component\HttpFoundation\RedirectResponse|Response
+     * @return RedirectResponse|Response
      * @throws \Exception
      */
     public function addAction(Request $request)
     {
-        $forum = new \Yosimitso\WorkingForumBundle\Entity\Forum;
-        $forum->addSubForum(new \Yosimitso\WorkingForumBundle\Entity\Subforum);
+        $forum = new Forum();
+        $forum->addSubForum(new Subforum());
 
         $form = $this->createForm(AdminForumType::class, $forum);
 
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            foreach ($forum->getSubforum() as $subforum) {
-                $subforum->setForum($forum);
-            }
-            $forum->generateSlug($forum->getName());
-            $this->em->persist($forum);
-            $this->em->flush();
 
-            $this->flashbag->add(
-                'success',
-                $this->translator->trans('message.saved', [], 'YosimitsoWorkingForumBundle')
-            );
+            $this->entityManager->persist($forum);
+            $this->entityManager->flush();
 
-            return $this->redirect($this->generateUrl('workingforum_admin'));
+            $this->addFlash('success', $this->translator->trans('message.saved', [],
+                'YosimitsoWorkingForumBundle'));
+
+            return $this->redirectToRoute('workingforum_admin_forum_edit', [
+                'id' => $forum->getId()]);
         }
 
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Forum/form.html.twig',
-            [
-                'forum' => $forum,
-                'form' => $form->createView(),
-            ]
-        );
-    }
-
-    public function rulesAction()
-    {
-        $form = $this->createForm(RulesType::class, null);
-
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Rules/rules.html.twig',
-            [
-                'form' => $form->createView(),
-            ]
-        );
+        return $this->render('@YosimitsoWorkingForum/Admin/Forum/form.html.twig',[
+            'forum' => $forum,
+            'form' => $form->createView(),
+        ]);
     }
 
     /**
+     * @Route("/rules/edit/{id}", name="edit_forum_rules", requirements={"id": "\d+"})
+     *
      * @Security("has_role('ROLE_ADMIN')")
      */
-    public function rulesEditAction(Request $request, $lang)
+    public function rulesEditAction($id, Request $request)
     {
-        $listSmiley = $this->smileyTwigExtension->getListSmiley(); // Smileys available for markdown
-        $rules = $this->em->getRepository('YosimitsoWorkingForumBundle:Rules')->findOneBy(['lang' => $lang]);
+        $rule = $this->entityManager->getRepository(Rules::class)
+            ->find($id);
 
-        if (is_null($rules)) {
-            throw new \Exception('Lang not found', 500);
+        if (empty($rule)) {
+            throw $this->createNotFoundException('Lang not found');
         }
 
-        $form = $this->createForm(RulesEditType::class, $rules);
+       return $this->handleRulesForm($rule, $request);
+    }
+
+    /**
+     * @Route("/rules/add", name="new_forum_rules")
+     *
+     * @Security("has_role('ROLE_ADMIN')")
+     */
+    public function rulesNewAction(Request $request)
+    {
+        return $this->handleRulesForm(new Rules(), $request);
+    }
+
+    protected function handleRulesForm(Rules $rule, Request $request)
+    {
+        $form = $this->createForm(RulesEditType::class, $rule);
+
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
-            $this->em->persist($rules);
-            $this->em->flush();
-            $this->flashbag->add(
-                'success',
-                $this->translator->trans('message.saved', [], 'YosimitsoWorkingForumBundle')
-            );
 
+            $this->entityManager->persist($rule);
+            $this->entityManager->flush();
+
+            $this->addFlash('success', $this->translator->trans('message.saved', [],
+                'YosimitsoWorkingForumBundle'));
+
+            return $this->redirectToRoute('workingforum_admin_edit_forum_rules', [
+                'id' => $rule->getId()
+            ]);
         }
 
-        $parameters = [ // PARAMETERS USED BY TEMPLATE
-            'fileUpload' => ['enable' => false],
-        ];
-
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Rules/rules-edit.html.twig',
-            [
-                'form' => $form->createView(),
-                'listSmiley' => $listSmiley,
-                'request' => $request,
-                'lang' => $lang,
-                'parameters' => $parameters,
+        return $this->render('@YosimitsoWorkingForum/Admin/Rules/edit.html.twig', [
+            'form' => $form->createView(),
+            'parameters' => [
+                'fileUpload' => ['enable' => false]
             ]
-        );
+        ]);
     }
 
     /**
-     * @Security("has_role('ROLE_ADMIN')")
-     */
-    public function rulesNewAction(Request $request, $lang)
-    {
-        $listSmiley = $this->smileyTwigExtension->getListSmiley(); // Smileys available for markdown
-        $rules = new Rules();
-
-        $form = $this->createForm(RulesEditType::class, $rules);
-        $form->handleRequest($request);
-
-        if ($form->isSubmitted() && $form->isValid()) {
-            $rules->setLang($lang);
-            $this->em->persist($rules);
-            $this->em->flush();
-        }
-
-        $parameters = [ // PARAMETERS USED BY TEMPLATE
-            'fileUpload' => ['enable' => false],
-        ];
-
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Rules/rules-edit.html.twig',
-            [
-                'form' => $form->createView(),
-                'listSmiley' => $listSmiley,
-                'request' => $request,
-                'parameters' => $parameters,
-                'lang' => $lang,
-            ]
-        );
-    }
-
-    /**
+     * @Route("/report", name="report")
+     *
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     *
      * @return Response
      */
-    public function ReportAction()
+    public function reportAction()
     {
-        $postReportList = $this->em->getRepository('YosimitsoWorkingForumBundle:PostReport')
-            ->findBy(['processed' => null], ['processed' => 'ASC', 'id' => 'ASC']);
-        $date_format = $this->container->getParameter('yosimitso_working_forum.date_format');
+        $postReportList = $this->entityManager->getRepository(PostReport::class)
+            ->getNonReviewed();
 
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Report/report.html.twig',
-            [
-                'postReportList' => $postReportList,
-                'date_format' => $date_format,
-            ]
-        );
-    }
 
-    /**  @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
-     */
-    public function ReportHistoryAction()
-    {
-        $postReportList = $this->em->getRepository('YosimitsoWorkingForumBundle:PostReport')
-            ->findBy(['processed' => 1], ['processed' => 'ASC', 'id' => 'DESC']);
-        $date_format = $this->getParameter('yosimitso_working_forum.date_format');
-
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/Report/report_history.html.twig',
-            [
-                'postReportList' => $postReportList,
-                'date_format' => $date_format,
-            ]
-        );
+        return $this->render('@YosimitsoWorkingForum/Admin/Report/report.html.twig',[
+            'postReportList' => $postReportList,
+        ]);
     }
 
     /**
+     *
+     * @Route("/report/history", name="report_history")
+     *
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     */
+    public function reportHistoryAction()
+    {
+        $postReportList = $this->entityManager->getRepository(PostReport::class)
+            ->getReviewed();
+
+        return $this->render('@YosimitsoWorkingForum/Admin/Report/report_history.html.twig', [
+            'postReportList' => $postReportList
+        ]);
+    }
+
+
+    /**
+     *
+     * @Route("/report/review/{id}", name="report_review", requirements={"id": "\d+"})
+     *
+     * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     *
+     * @param $id
      * @param Request $request
      *
      * @return Response
      */
-    public function ReportActionGoodAction(Request $request)
+    public function reportReviewAction($id, Request $request, FormFactoryInterface $formFactory)
     {
-        $id = (int)htmlentities($request->request->get('id'));
+        $entityManager = $this->entityManager;
 
-        if ($id) {
-            $report = $this->em->getRepository('YosimitsoWorkingForumBundle:PostReport')->findOneById($id);
-            if (is_null($report)) {
-                return new Response(json_encode('fail'), 500);
-            }
-            $report->setProcessed(1);
-            $this->em->persist($report);
+        /**
+         * @var PostReport
+         */
+        $report = $entityManager->getRepository(PostReport::class)
+            ->find($id);
+
+        if (empty($report)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Report not exists'
+            ]);
         }
 
-        $this->em->flush();
+        $form = $formFactory->createNamedBuilder('', FormType::class, [], ['csrf_protection' => false])
+            ->add('reviewType', null, [
+                'constraints' => [
+                    new Constraints\NotBlank(),
+                    new Constraints\Choice(['choices' => ['1', '2']])
+                ]
+            ])
+            ->add('reason')
+            ->add('banUser')
+            ->getForm();
 
-        return new Response(json_encode('ok'), 200);
+        $form->handleRequest($request);
 
+        if (!$form->isSubmitted()) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Form not submitted'
+            ]);
+        }
+
+        if (!$form->isValid()) {
+            return $this->json([
+                'success' => false,
+                'message' => 'Form is not valid'
+            ]);
+        }
+
+        $formData = $form->getData();
+
+        $postReportReview = new PostReportReview();
+        $postReportReview->setReport($report);
+        $postReportReview->setReviewer($this->getUser());
+        $postReportReview->setType($formData['reviewType']);
+
+        if ($formData['reviewType'] === '2') {
+            $postReportReview->setReason($formData['reason']);
+
+            if ($formData['banUser'] === '1') {
+                $entityManager->persist($report->getPost()
+                    ->getUser()->addRole('ROLE_USER_BANNED'));
+            }
+        }
+
+        $entityManager->persist($postReportReview);
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'message' => 'post review completed'
+        ]);
     }
 
     /**
+     *
+     * @Route("/user", name="user")
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     *
      * @return Response
      */
     public function userListAction()
     {
-        $usersList = $this->em->getRepository('YosimitsoWorkingForumBundle:User')->findAll();
+        $usersList = $this->entityManager->getRepository(User::class)->findAll();
 
-        return $this->templating->renderResponse(
-            '@YosimitsoWorkingForum/Admin/User/userslist.html.twig',
-            [
-                'usersList' => $usersList,
-
-            ]
-        );
+        return $this->render('@YosimitsoWorkingForum/Admin/User/userslist.html.twig', [
+            'usersList' => $usersList
+        ]);
 
     }
 
     /**
-     * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
-     * @param Request $request
      *
-     * @return Response
-     */
-    public function ReportActionModerateAction(Request $request)
-    {
-        $reason = htmlentities($request->request->get('reason'));
-        $id = (int)htmlentities($request->request->get('id'));
-        $postId = (int)htmlentities($request->request->get('postId'));
-        $banuser = (int)htmlentities($request->request->get('banuser'));
-
-        if (empty($reason)) {
-            return new Response(json_encode('fail'), 500);
-        }
-
-        $post = $this->em->getRepository('YosimitsoWorkingForumBundle:Post')->findOneById($postId);
-        if (is_null($post)) {
-            return new Response(json_encode('fail'), 500);
-        }
-        $post->setModerateReason($reason);
-        $this->em->persist($post);
-
-        if ($id) {
-            $report = $this->em->getRepository('YosimitsoWorkingForumBundle:PostReport')->findOneById($id);
-            if (is_null($report)) {
-                return new Response(json_encode('fail'), 500);
-            }
-            $report->setProcessed(1);
-            $this->em->persist($report);
-        }
-
-        if ($banuser) {
-            $postUser = $this->em->getRepository('YosimitsoWorkingForumBundle:User')->findOneById(
-                $post->getUser()->getId()
-            );
-            if (is_null($postUser)) {
-                return new Response(json_encode('fail'), 500);
-            }
-            $postUser->setBanned(1);
-            $this->em->persist($postUser);
-        }
-        $this->em->flush();
-
-        return new Response(json_encode('ok'), 200);
-
-    }
-
-    /**
+     * @Route("/forum/delete/{id}", name="delete_forum", requirements={"id": "\d+"})
      * @Security("has_role('ROLE_ADMIN')")
-     * @param $forum_id
+     *
+     * @param string $forum_id
      *
      * @return Response
      */
-    public function deleteForumAction($forum_id)
+    public function deleteForumAction(string $id)
     {
-        $forum = $this->em->getRepository('YosimitsoWorkingForumBundle:Forum')->findOneById($forum_id);
+        $entityManager = $this->entityManager;
 
-        if (!is_null($forum)) {
-            $this->em->remove($forum);
-            $this->em->flush();
-            $this->flashbag->add(
-                'success',
-                $this->get('translator')->trans('admin.forumDeleted', [], 'YosimitsoWorkingForumBundle')
-            );
+        $forum = $entityManager->getRepository(Forum::class)->find($id);
+
+        if (!empty($forum)) {
+
+            $entityManager->remove($forum);
+            $entityManager->flush();
+            $this->addFlash('success', $this->get('translator')->trans('admin.forumDeleted',
+                [], 'YosimitsoWorkingForumBundle'));
         }
 
-        return $this->forward('@YosimitsoWorkingForum/Admin/index', []);
+        return $this->redirectToRoute('workingforum_admin_index');
     }
 
-    private function renderSettings($settingsList)
-    {
-        $settingsHtml = [];
-
-        foreach ($settingsList as $setting) {
-            if (isset($setting['group']) && $setting['group']) {
-                $settingsHtml[] = [
-                    'group' => true,
-                    'label' => $this->translator->trans('setting.'.$setting['label'], [], 'YosimitsoWorkingForumBundle'),
-                ];
-            } else {
-                $html = [];
-
-                if (isset($setting['key'])) {
-                    $setting['value'] = $this->getParameter(
-                        'yosimitso_working_forum.'.$setting['label']
-                    )[$setting['key']];
-                    $html['text'] = $this->translator
-                        ->trans('setting.'.$setting['label'].'.'.$setting['key'], [], 'YosimitsoWorkingForumBundle');
-                } else {
-                    $setting['value'] = $this->getParameter('yosimitso_working_forum.'.$setting['label']);
-                    $html['text'] = $this->translator
-                        ->trans('setting.'.$setting['label'], [], 'YosimitsoWorkingForumBundle');
-                }
-
-                switch ($setting['varType']) {
-                    case 'boolean':
-                        $setting['attr'] = ['autocomplete' => 'off', 'disabled' => 'disabled'];
-                        $setting['type'] = 'checkbox';
-                        break;
-                    case 'string':
-                        $setting['attr'] = ['autocomplete' => 'off', 'disabled' => 'disabled', 'style' => 'width:80px'];
-                        $setting['type'] = 'text';
-                        break;
-                    case 'number':
-                        $setting['attr'] = ['autocomplete' => 'off', 'disabled' => 'disabled'];
-                        $setting['type'] = 'number';
-                        break;
-                    case 'array':
-                        $setting['attr'] = ['autocomplete' => 'off', 'disabled' => 'disabled', 'style' => 'width:auto'];
-                        $setting['type'] = 'text';
-                        $setting['value'] = implode(',', $setting['value']);
-                }
 
 
-                $html['input'] = '<input type="'.$setting['type'].'" value="'.$setting['value'].'"';
-                foreach ($setting['attr'] as $indexAttr => $attr) {
-                    $html['input'] .= ' '.$indexAttr.'="'.$attr.'"';
-                }
-
-                $html['input'] .= '/>';
-
-                $settingsHtml[] = $html;
-            }
-
-        }
-
-        return $settingsHtml;
-
-    }
 
 }

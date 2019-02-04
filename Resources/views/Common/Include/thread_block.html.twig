@@ -1,0 +1,120 @@
+
+{% for item in postList %}
+
+    {% set post = item.post %}
+    {% set reviews = post.getReviews() %}
+
+    {% if reviews | length > 0 %}
+
+        {% embed '@YosimitsoWorkingForum/Common/Embed/post_moderated_list_row.html.twig' %}
+
+            {% block post_owner %}
+                <img class="wf-user-avatar" src="{{ user_avatar(post.user) }}" />
+                <div class="wf-user-name">{{ post.user.username }}</div>
+                <div class="wf-user-message-count">{{ postRepository.getCountByUser(post.user) }}
+                    {{ 'forum.post_count' | trans }}</div>
+                <div class="wf-user-label">{{ user_role(post.user) }}</div>
+            {% endblock %}
+
+            {% block post_body %}
+                {% for review in reviews %}
+                    <p class="wf-moderate-reason">{{ 'forum.post_moderated' | trans }} {{ review.reason }}</p>
+                {% endfor %}
+            {% endblock %}
+
+        {% endembed %}
+
+    {% else %}
+
+        {% embed '@YosimitsoWorkingForum/Common/Embed/post_list_row.html.twig' %}
+
+            {% block post_owner %}
+                <img class="wf-user-avatar" src="{{ user_avatar(post.user) }}" />
+                <div class="wf-user-name">{{ post.user.username }}</div>
+                <div class="wf-user-message-count">{{ postRepository.getCountByUser(post.user) }}
+                    {{ 'forum.post_count' | trans }}</div>
+                <div class="wf-user-label">{{ user_role(post.user) }}</div>
+            {% endblock %}
+
+            {% block post_body %}
+                {{ post.content | quote | markdown | wf_emoji | raw }}
+            {% endblock %}
+
+            {% block post_files %}
+                {% if post.files | length > 0  %}
+                    <div class="wf-enclosed-files">
+                        <div class="wf-enclosed-files-header">
+                            {{ 'forum.enclosed_files' | trans }}
+                            <a href="#" class="btn btn-secondary">&darr;</a>
+                        </div>
+                        <ul class="wf-enclosed-files-list">
+                            {% for file in post.files %}
+                                {% set filePath = vich_uploader_asset(file, 'file') %}
+                                <li>
+                                    <a href="{{ filePath }}">
+                                        {% if file.extension in ['jpg', 'jpeg', 'png', 'gif', 'tiff'] and fileUploadConfig.preview_file  %}
+                                            <img class="preview" src="{{ filePath }}" />
+                                        {% endif %}
+                                        {{ file.originalName }} <span class="size">- {{ (file.size/1000) | round }} ko</span>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            {% endblock %}
+
+            {% block post_actions %}
+                {% if wf_is_logged_in() %}
+                    <div class="btn-block">
+                        <button type="button"
+                            class="btn btn-sm btn-light btn-ajax-action"
+                            data-route="workingforum_report_post"
+                            data-route-params="{{ {'postId' : post.id} | json_encode() | escape('html_attr') }}"
+                            title="{{ 'forum.report' | trans }}">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </button>
+                        {% if not thread.locked %}
+                            <a class="btn btn-sm btn-light btn-quote-post" href="#wf-post-content"
+                               data-post-id="{{ post.id }}" title="{{ 'forum.quote' | trans }}">
+                                    <i class="fas fa-quote-right"></i></a>
+                        {% endif %}
+
+                        {% if wf_is_manager() %}
+                            <button type="button"
+                                class="btn btn-sm btn-light btn-ajax-action"
+                                data-route="workingforum_moderate_post"
+                                data-route-params="{{ {'postId' : post.id} | json_encode() | escape('html_attr') }}"
+                                data-report-why="{{ 'admin.report.why' | trans }}"
+                                data-invalid-reason="{{ 'admin.report.invalid_reason' | trans }}"
+                                title="{{ 'admin.report.moderate' | trans }}">
+                                    <i class="fas fa-ban"></i></button>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endblock %}
+
+            {% block post_vote %}
+
+                    <div class="btn-group btn-vote-container">
+                    {% if wf_is_logged_in() and post.user.id != app.user.id and not thread.locked  %}
+                        {% set isVoted = post.id in votedPosts %}
+                        <button type="button"
+                                class="btn btn-sm btn-light btn-ajax-action"
+                                data-route="{{ isVoted ? 'workingforum_vote_down' : 'workingforum_vote_up' }}"
+                                data-route-params="{{ {'postId' : post.id} | json_encode() | escape('html_attr') }}">
+                            <i class="{{ isVoted ? 'fas' : 'far' }} fa-thumbs-up"></i></button>
+                    {% else %}
+                        <span class="btn btn-sm">
+                            <i class="far fa-thumbs-up"></i>
+                        </span>
+                    {% endif %}
+                        <span class="wf-post-vote-count p-1 px-2">{{ item.voteCount | default(0) }}</span>
+                    </div>
+
+            {% endblock %}
+
+        {% endembed %}
+
+    {% endif %}
+{% endfor %}

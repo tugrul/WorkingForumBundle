@@ -10,7 +10,11 @@ use Doctrine\ORM\Mapping as ORM;
  * @package Yosimitso\WorkingForumBundle\Entity
  *
  * @ORM\Table(name="workingforum_post_report")
- * @ORM\Entity()
+ * @ORM\Entity(repositoryClass="Yosimitso\WorkingForumBundle\Repository\PostReportRepository")
+ * @ORM\HasLifecycleCallbacks()
+ * @ORM\NamedNativeQueries({
+ * @ORM\NamedNativeQuery(name="post_report_non_reviewed", resultClass="__CLASS__", query="select * from workingforum_post_report where id not in (select report_id from workingforum_post_report_review)")
+ * })
  */
 class PostReport
 {
@@ -42,23 +46,15 @@ class PostReport
     /**
      * @var \DateTime
      *
-     * @ORM\Column(name="cdate", type="datetime")
+     * @ORM\Column(name="create_date", type="datetime")
      */
-    private $cdate;
-    
-    /**
-     * @var boolean
-     *  @ORM\Column(name="processed", type="boolean", nullable=true)
-     */  
-    private $processed;
+    private $createDate;
 
     /**
-     * PostReport constructor.
+     * @var PostReportReview
+     * @ORM\OneToOne(targetEntity="PostReportReview", mappedBy="report")
      */
-    public function __construct()
-    {
-        $this->cdate = new \DateTime;
-    }
+    private $review;
 
     /**
      * Get id
@@ -113,40 +109,47 @@ class PostReport
     /**
      * @return \DateTime
      */
-    public function getCdate()
+    public function getCreateDate()
     {
-        return $this->cdate;
+        return $this->createDate;
     }
 
     /**
-     * @param \DateTime $cdate
+     * @param \DateTimeInterface $createDate
      *
      * @return PostReport
      */
-    public function setCdate(\DateTime $cdate)
+    public function setCreateDate(\DateTimeInterface $createDate)
     {
-        $this->cdate = $cdate;
+        $this->createDate = $createDate;
 
         return $this;
     }
 
     /**
-     * @return bool
+     * @return PostReportReview
      */
-    public function isProcessed()
+    public function getReview(): ?PostReportReview
     {
-        return (bool) $this->processed;
+        return $this->review;
     }
 
     /**
-     * @param bool $processed
-     *
-     * @return PostReport
+     * @param PostReportReview $review
      */
-    public function setProcessed($processed)
+    public function setReview(?PostReportReview $review): self
     {
-        $this->processed = $processed;
+        $this->review = $review;
 
         return $this;
+    }
+
+
+    /**
+     * @ORM\PrePersist
+     */
+    public function prePersistTimestamps()
+    {
+        $this->setCreateDate(new \DateTimeImmutable());
     }
 }

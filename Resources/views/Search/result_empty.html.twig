@@ -1,0 +1,11 @@
+{% extends '@YosimitsoWorkingForum/Search/search.html.twig' %}
+
+{% block forum %}
+
+    {{ parent() }}
+
+    <h2>Search Result</h2>
+
+    <p>{{ 'search.no_result' | trans({'%keywords%' : keywords}) }}</p>
+
+{% endblock %}

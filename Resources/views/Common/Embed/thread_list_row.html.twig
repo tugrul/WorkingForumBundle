@@ -1,0 +1,35 @@
+{% set post = item.post %}
+    {% set thread = post.thread %}
+    {% set threadPath = path( 'workingforum_thread', {
+        'forumSlug' : subforum.forum.slug,
+        'subforumSlug' : subforum.slug,
+        'threadSlug' : thread.slug,
+        'threadId': thread.id}) %}
+
+<tr {{ html_class_attribute({'forum-thread-pin': thread.pin, 'forum-thread-resolved': thread.resolved}) }}>
+    <td class="forum-thread-col-info">
+        <div class="thread-label">
+            {% block thread_flags %}
+            {% endblock %}
+
+            {% block thread_label %}
+            {% endblock %}
+        </div>
+
+        <div class="thread-sublabel">{{ thread.sublabel }}</div>
+
+        <div class="thread-latest-page">
+            {% block thread_latest_page %}
+            {% endblock %}
+        </div>
+    </td>
+    <td class="forum-thread-col-author">
+        {% block thread_author %}
+        {% endblock %}
+    </td>
+    <td class="forum-thread-col-stat">{{ item.postCount}} {{ 'forum.post_count' | trans }}</td>
+    <td class="forum-thread-col-last-reply">
+        {% block thread_last_reply %}
+        {% endblock %}
+    </td>
+</tr>

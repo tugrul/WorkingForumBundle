@@ -1,70 +1,31 @@
+
 {% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
+
+
+{% trans_default_domain 'YosimitsoWorkingForumBundle' %}
+
+
+{% block forum_styles %}
+    <link rel="stylesheet" href="{{ asset('css/bootstrap-markdown-editor.css', 'forum') }}"
+          type="text/css" media="all"/>
+{% endblock %}
+
+{% block forum_scripts %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
+
+    <script src="{{ asset('js/bootstrap-markdown-editor.js', 'forum') }}"></script>
+    <script src="{{ asset('js/editor.js', 'forum') }}"></script>
+    <script src="{{ asset('js/file-collection.js', 'forum') }}"></script>
+
+    <script src="{{ asset('bundles/fosjsrouting/js/router.min.js') }}"></script>
+    <script src="{{ path('fos_js_routing_js', { callback: 'fos.Router.setData' }) }}"></script>
+{% endblock %}
+
 {% block forum %}
-    {% include '@YosimitsoWorkingForum/Common/header.html.twig' %}
-    {% trans_default_domain 'YosimitsoWorkingForumBundle' %}
-    <script src="{{ asset('bundles/yosimitsoworkingforum/js/jquery.min.js') }}"></script>
-    <script src="{{ asset('bundles/yosimitsoworkingforum/js/smiley.js') }}"></script>
-    <script src="{{ asset('bundles/yosimitsoworkingforum/markdown/js/bootstrap-markdown.js') }}"></script>
-    <script src="{{ asset('bundles/yosimitsoworkingforum/showdown/src/showdown.js') }}"></script>
-    <script src="{{ asset('bundles/yosimitsoworkingforum/markdown/locale/bootstrap-markdown.fr.js') }}"></script>
-    <script src="{{ asset('bundles/yosimitsoworkingforum/showdown/src/extensions/twitter.js') }}"></script>
-    <script src="{{ asset('bundles/yosimitsoworkingforum/js/nicefileinput/jquery.nicefileinput.min.js') }}"></script>
-    <link rel="stylesheet" href="{{ asset('bundles/yosimitsoworkingforum/markdown/css/bootstrap.min.css') }}"
-          type="text/css" media="all"/>
-    <link rel="stylesheet" href="{{ asset('bundles/yosimitsoworkingforum/markdown/css/bootstrap-markdown.min.css') }}"
-          type="text/css" media="all"/>
 
-    <script type="text/javascript">
-        jQuery(document).ready(function () {
-            jQuery(".wf_textarea_post").markdown({
-                language: '{{ request.locale }}',
-                onPreview: function (e) {
+    <h1>{{ ('forum.new_thread' | trans) }}</h1>
 
-                    var converter = new Showdown.converter({extensions: ['twitter']});
+    {{ form(form) }}
 
-                    var html = converter.makeHtml(nl2br(e.getContent()), '{{ asset('bundles/yosimitsoworkingforum/') }}');
-                    return html;
-                },
-                fullscreen: {enable: false}
-            });
-        });
-
-        function nl2br(str, is_xhtml) {
-            var breakTag = (is_xhtml || typeof is_xhtml === 'undefined') ? '<br />' : '<br>';
-            return (str + '').replace(/([^>\r\n]?)(\r\n|\n\r|\r|\n)/g, '$1' + breakTag + '$2');
-        }
-
-    </script>
-
-    <div id="wf_forum_content">
-        {% include '@YosimitsoWorkingForum/Common/flashmsg.html.twig' with {'form': form} %}
-        {% include '@YosimitsoWorkingForum/Common/breadcrumb.html.twig' with {'subforum': subforum, 'extraPath': ['forum.new_thread' | trans] } only %}
-        <div class="wf_new_thread">
-
-            <h1>{{ ('forum.new_thread' | trans) }} {{ ('forum.into_forum' | trans) }} <em>{{ subforum.name }}</em></h1>
-            <div class="wf_new_thread_content">
-
-
-                {{ form_start(form) }}
-                <p>{{ form_label(form.label) }}</p>
-                <p>{{ form_widget(form.label) }}</p>
-
-                <p>{{ form_label(form.sublabel) }}</p>
-                <p>{{ form_widget(form.sublabel) }}</p>
-                {% embed '@YosimitsoWorkingForum/Post/textarea.html.twig' with {'listSmiley': listSmiley, 'pin': (form.pin is defined) ? form.pin : null, 'form': form.post.0, 'parameters': parameters, 'submitLabelKey': 'forum.create_thread'} only %}
-
-                  {% block extraInput %}
-                    {% if (pin) %}
-                        <p>{{ form_widget(pin) }} {{ form_label(pin) }}</p>
-                    {% endif %}
-                      {{ form_rest(form) }}
-                  {% endblock %}
-                {% endembed %}
-                {{ form_end(form) }}
-
-
-            </div>
-
-        </div>
-    </div>
 {% endblock %}

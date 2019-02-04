@@ -1,0 +1,9 @@
+framework:
+    assets:
+        packages:
+            forum:
+                base_path: 'bundles/yosimitsoworkingforum'
+            forum_avatar:
+                base_path: 'bundles/yosimitsoworkingforum'
+            forum_emojis:
+                base_path: 'bundles/yosimitsoworkingforum/images/smiley'

@@ -2,10 +2,8 @@
 
 namespace Yosimitso\WorkingForumBundle\Controller;
 
+use Yosimitso\WorkingForumBundle\Entity\Thread;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Yosimitso\WorkingForumBundle\Security\Authorization;
 
 /**
  * Class BaseController
@@ -14,21 +12,55 @@ use Yosimitso\WorkingForumBundle\Security\Authorization;
  */
 class BaseController extends Controller
 {
-    protected $em;
-    protected $authorization;
-    protected $user;
-    protected $flashbag;
-    protected $translator;
-    protected $paginator;
-    protected $templating;
-    
-    public function setParameters($em, $authorization, $user, $session, $translator, $paginator, $templating) {
-        $this->em = $em;
-        $this->authorization = $authorization;
-        $this->user = (is_object($user)) ? $user : null;
-        $this->flashbag = $session->getFlashBag();
-        $this->translator = $translator;
-        $this->paginator = $paginator;
-        $this->templating = $templating;
+    protected function isAnonymousReadAllowed()
+    {
+        return $this->getParameter('yosimitso_working_forum.allow_anonymous_read');
+    }
+
+
+    protected function hasModeratorAuthorization()
+    {
+        return $this->isGranted(['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_MODERATOR']);
+    }
+
+    protected function denyAccessUnlessModerator()
+    {
+        $this->denyAccessUnlessGranted(['ROLE_SUPER_ADMIN', 'ROLE_ADMIN', 'ROLE_MODERATOR']);
+    }
+
+    protected function denyAccessUnlessUser($allowBannedUser = false)
+    {
+        $this->denyAccessUnlessGranted('ROLE_USER');
+
+        !$allowBannedUser && $this->denyAccessBannedUser();
+    }
+
+    protected function denyAccessBannedUser()
+    {
+        $attributes = 'ROLE_USER_BANNED';
+
+        if (!$this->isGranted($attributes)) {
+            return;
+        }
+
+        $exception = $this->createAccessDeniedException('Banned user not allowed to access');
+        $exception->setAttributes($attributes);
+
+        throw $exception;
+    }
+
+    /**
+     * @param $threadId
+     */
+    protected function getThreadById($threadId) : Thread
+    {
+        $thread = $this->get('doctrine.orm.default_entity_manager')
+            ->getRepository(Thread::class)->find($threadId);
+
+        if (empty($thread)) {
+            throw $this->createNotFoundException('Thread not found');
+        }
+
+        return $thread;
     }
 }

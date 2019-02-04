@@ -1,0 +1,17 @@
+
+{% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
+
+{% block forum_styles %}
+    <link rel="stylesheet" media="all" href="{{ asset('css/admin.css', 'forum') }}" />
+{% endblock %}
+
+{% block forum_header %}
+    <a class="btn btn-secondary" href="{{ path('workingforum_admin_index') }}">{{ 'admin.back_to_admin' | trans }}</a>
+{% endblock %}
+
+{% block forum %}
+    <h1>{{ 'admin.admin_area' | trans }}</h1>
+    {% block admin_subtitle %}{% endblock %}
+
+    {% block admin_body %}{% endblock %}
+{% endblock %}

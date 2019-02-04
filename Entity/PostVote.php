@@ -43,7 +43,7 @@ class PostVote
     /**
      * @var int
      *
-     * @ORM\Column(name="voteType", type="integer")
+     * @ORM\Column(name="vote_type", type="integer")
      */
     private $voteType;
 

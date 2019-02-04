@@ -2,8 +2,8 @@
 
 namespace Yosimitso\WorkingForumBundle\Entity;
 
-use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
+use Doctrine\Common\Collections\ArrayCollection;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -12,8 +12,20 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @package Yosimitso\WorkingForumBundle\Entity
  *
  * @ORM\Table(name="workingforum_post")
- * @ORM\Entity()
+ * @ORM\Entity(repositoryClass="Yosimitso\WorkingForumBundle\Repository\PostRepository")
  * @ORM\HasLifecycleCallbacks()
+ * @ORM\NamedNativeQueries({
+ * @ORM\NamedNativeQuery(
+ *     name="last_post_by_subforum",
+ *     resultClass="__CLASS__",
+ *     query="SELECT * FROM `workingforum_post` WFP WHERE WFP.`thread_id` IN (SELECT WFT.`id` FROM `workingforum_thread` WFT WHERE WFT.`subforum_id` = :subforumId) ORDER BY WFP.create_date DESC LIMIT 1"
+ * ),
+ * @ORM\NamedNativeQuery(
+ *     name="last_post_by_thread",
+ *     resultClass="__CLASS__",
+ *     query="SELECT * FROM `workingforum_post` WFP WHERE WFP.`thread_id` = :threadId ORDER BY WFP.create_date DESC LIMIT 1"
+ * )
+ * })
  */
 class Post
 {
@@ -27,8 +39,8 @@ class Post
     private $id;
 
     /**
-     * @var ArrayCollection
-     * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\Thread", inversedBy="post")
+     * @var Thread
+     * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\Thread", inversedBy="posts")
      * @ORM\JoinColumn(name="thread_id", referencedColumnName="id", nullable=true)
      */
     private $thread;
@@ -49,13 +61,6 @@ class Post
     private $published;
 
     /**
-     * @var integer
-     *
-     * @ORM\Column(name="user_id", type="integer", nullable=false)
-     */
-    private $userId;
-
-    /**
      * @var UserInterface
      *
      * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\User")
@@ -66,23 +71,17 @@ class Post
     /**
      * @var \DateTime
      *
-     * @ORM\Column(name="cdate", type="datetime")
+     * @ORM\Column(name="create_date", type="datetime")
      * @Assert\NotBlank()
      */
-    private $cdate;
+    private $createDate;
 
     /** var string
      *
-     * @ORM\Column(name="ip", type="string")
+     * @ORM\Column(name="ip_address", type="string")
      */
-    private $ip; // FOR LEGAL AND SECURITY REASON
+    private $ipAddress;
 
-    /**
-     * @var string
-     *
-     * @ORM\Column(name="moderateReason", type="text",nullable=true)
-     */
-    private $moderateReason;
 
     /**
      * @var ArrayCollection
@@ -94,53 +93,20 @@ class Post
      * )
      */
 
-    private $postReport;
+    private $postReports;
 
     /**
-     * @var integer
-     * @ORM\Column(name="voteUp", type="integer", nullable=true)
-     */
-
-    private $voteUp;
-
-    /**
-     * @ORM\OneToMany(targetEntity="Yosimitso\WorkingForumBundle\Entity\File", mappedBy="post", cascade={"persist","remove"})
+     * @ORM\OneToMany(targetEntity="Yosimitso\WorkingForumBundle\Entity\PostFile", mappedBy="post", cascade={"persist", "remove"})
      *
      * @var ArrayCollection
      */
     private $files;
 
-    /**
-     *
-     */
-    private $filesUploaded;
-
-    /**
-     * @var boolean
-     */
-    private $addSubscription;
-
-
-
-    /**
-     * Post constructor.
-     * @param UserInterface|null $user
-     * @param Thread|null $thread
-     */
-    public function __construct(UserInterface $user = null, Thread $thread = null)
+    public function __construct()
     {
-        $this->setCdate(new \DateTime)
-            ->setPublished(1)
-            ->setIp(isset($_SERVER['REMOTE_ADDR']) ? $_SERVER['REMOTE_ADDR'] : 0);
-
-        if (!is_null($user)) {
-            $this->setUser($user);
-        }
-
-        if (!is_null($thread)) {
-            $this->setThread($thread);
-        }
+        $this->files = new ArrayCollection();
     }
+
 
     /**
      * @return integer
@@ -163,7 +129,7 @@ class Post
     }
 
     /**
-     * @return ArrayCollection
+     * @return Thread
      */
     public function getThread()
     {
@@ -177,7 +143,7 @@ class Post
      */
     public function setContent($content)
     {
-        $this->content = htmlentities(strip_tags($content));
+        $this->content = $content;
 
         return $this;
     }
@@ -187,7 +153,7 @@ class Post
      */
     public function getContent()
     {
-        return html_entity_decode($this->content);
+        return $this->content;
     }
 
     /**
@@ -206,26 +172,6 @@ class Post
     public function setPublished($published)
     {
         $this->published = $published;
-
-        return $this;
-    }
-
-    /**
-     * @return int
-     */
-    public function getUserId()
-    {
-        return $this->userId;
-    }
-
-    /**
-     * @param int $userId
-     *
-     * @return Post
-     */
-    public function setUserId($userId)
-    {
-        $this->userId = $userId;
 
         return $this;
     }
@@ -251,21 +197,21 @@ class Post
     }
 
     /**
-     * @return \DateTime
+     * @return \DateTimeInterface
      */
-    public function getCdate()
+    public function getCreateDate()
     {
-        return $this->cdate;
+        return $this->createDate;
     }
 
     /**
-     * @param \DateTime $cdate
+     * @param \DateTimeInterface $createDate
      *
      * @return Post
      */
-    public function setCdate(\DateTime $cdate)
+    public function setCreateDate(\DateTimeInterface $createDate)
     {
-        $this->cdate = $cdate;
+        $this->createDate = $createDate;
 
         return $this;
     }
@@ -273,39 +219,19 @@ class Post
     /**
      * @return mixed
      */
-    public function getIp()
+    public function getIpAddress()
     {
-        return $this->ip;
+        return $this->ipAddress;
     }
 
     /**
-     * @param mixed $ip
+     * @param mixed $ipAddress
      *
      * @return Post
      */
-    public function setIp($ip)
+    public function setIpAddress($ipAddress)
     {
-        $this->ip = htmlentities($ip);
-
-        return $this;
-    }
-
-    /**
-     * @return string
-     */
-    public function getModerateReason()
-    {
-        return $this->moderateReason;
-    }
-
-    /**
-     * @param string $moderateReason
-     *
-     * @return Post
-     */
-    public function setModerateReason($moderateReason)
-    {
-        $this->moderateReason = $moderateReason;
+        $this->ipAddress = $ipAddress;
 
         return $this;
     }
@@ -313,100 +239,58 @@ class Post
     /**
      * @return ArrayCollection
      */
-    public function getPostReport()
+    public function getPostReports()
     {
-        return $this->postReport;
+        return $this->postReports;
     }
 
     /**
-     * @return int
+     * @return ArrayCollection
      */
-
-    public function getVoteUp()
-    {
-        return $this->voteUp;
-    }
-
-    /**
-     * @return Post
-     */
-
-    public function addVoteUp()
-    {
-        $this->voteUp += 1;
-        return $this;
-    }
-
-    /**
- * @return ArrayCollection
- */
     public function getFiles()
     {
         return $this->files;
     }
 
     /**
-     * @return Post
-     */
-    public function addFiles($files)
-    {
-        if (is_array($files)) {
-            foreach ($files as $file) {
-                $this->files[] = $file;
-            }
-        } else {
-            $this->files[] = $files;
-        }
-
-        return $this;
-    }
-
-    /**
-     * @param filesUploaded
+     * @param $files PostFile[]
      *
-     * @return Post
-     */
-    public function setFilesUploaded($filesUploaded)
-    {
-        $this->filesUploaded = $filesUploaded;
-
-        return $this;
-    }
-
-    /**
-     * @return ArrayCollection
-     */
-    public function getFilesUploaded()
-    {
-        return $this->filesUploaded;
-    }
-
-    /**
-     * @param $file
      * @return $this
      */
-    public function addFilesUploaded($file)
+    public function setFiles($files)
     {
-        $this->filesUploaded[] = $file;
+        $this->files = $files;
+
         return $this;
     }
 
     /**
-     * @return boolean
+     * @return Post
      */
-    public function getAddSubscription()
+    public function addFile()
     {
-        return $this->addSubscription;
+        $this->files->add($file);
+
+        return $this;
     }
+
 
     /**
-     * @param boolean $addSubscription
+     * @ORM\PrePersist
      */
-    public function setAddSubscription($addSubscription)
+    public function prePersistTimestamps()
     {
-        $this->addSubscription = $addSubscription;
+        $this->setCreateDate(new \DateTimeImmutable());
     }
 
+    public function getReviews() : ArrayCollection
+    {
+        return $this->getPostReports()->filter(function (PostReport $report) {
 
+            $review = $report->getReview();
 
+            return !empty($review) && $review->getType() === '2';
+
+        });
+    }
 }

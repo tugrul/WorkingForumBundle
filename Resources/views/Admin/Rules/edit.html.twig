@@ -1,0 +1,29 @@
+
+{% extends '@YosimitsoWorkingForum/Admin/base.html.twig' %}
+
+{% block forum_styles %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ asset('css/bootstrap-markdown-editor.css', 'forum') }}"
+          type="text/css" media="all"/>
+{% endblock %}
+
+{% block forum_scripts %}
+    {{ parent() }}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.1.3/ace.js"></script>
+
+    <script src="{{ asset('js/bootstrap-markdown-editor.js', 'forum') }}"></script>
+    <script src="{{ asset('js/editor.js', 'forum') }}"></script>
+{% endblock %}
+
+{% block admin_subtitle %}
+    <h2>{{ 'admin.menu.forum_rules' | trans }}</h2>
+{% endblock %}
+
+
+{% block admin_body %}
+
+    {{ form(form) }}
+
+{% endblock %}

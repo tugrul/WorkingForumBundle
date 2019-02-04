@@ -1,0 +1,36 @@
+
+<section class="row wf-post mb-3">
+    <div class="col-md-3">
+        <div class="wf-post-owner p-3">
+        {% block post_owner %}
+        {% endblock %}
+        </div>
+    </div>
+    <div {{ html_class_attribute({'col': true,
+        'wf-useful-post': (item.voteCount >= voteConfig.threshold_useful_post)}) | raw }}>
+        <div class="mb-2">
+            {{ post.createDate | date }}
+        </div>
+
+        <div class="row my-2">
+            <div class="col-auto mr-auto">
+                {% block post_actions %}
+                {% endblock %}
+            </div>
+            <div class="col-auto">
+                {% block post_vote %}
+                {% endblock %}
+            </div>
+        </div>
+
+        <div class="wf-post-content" id="wf-post-{{ post.id }}">
+            {% block post_body %}
+            {% endblock %}
+        </div>
+
+
+
+        {% block post_files %}
+        {% endblock %}
+    </div>
+</section>

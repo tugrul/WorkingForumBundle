@@ -1,0 +1,36 @@
+
+{% block markdown_editor_widget %}
+    <div class="markdown-editor-container"{{ (container_id is defined ? ' id="' ~ container_id ~ '"' : '') | raw }}>
+        <div class="markdown-editor-emoji-list">{{ wf_emoji_list() | raw }}</div>
+        {{ block('textarea_widget') }}
+    </div>
+
+{% endblock %}
+
+
+{% block file_collection_widget %}
+
+    {% set uploadConfig = wf_parameter('file_upload') %}
+
+    <div class="file-collection-container">
+        <div class="file-collection-header">
+            <div class="accepted-formats">
+                <span>{{ 'forum.file_upload.accepted_format' | trans }}</span>
+                <ul>
+                    {% for format in uploadConfig.accepted_format %}
+                        <li>{{ format }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <p class="max-size">{{ uploadConfig.max_size_ko }} {{ 'forum.file_upload.ko_max' | trans }}</p>
+        </div>
+
+        <div class="file-collection-list">
+            {{ block('collection_widget') }}
+            <button type="button" class="btn btn-secondary btn-sm btn-add-file"><span class="fas fa-plus"></span>
+                {{ 'forum.add_file' | trans }}</button>
+        </div>
+    </div>
+
+{% endblock %}

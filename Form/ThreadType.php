@@ -9,6 +9,9 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\CollectionType;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 
+
+use Yosimitso\WorkingForumBundle\Entity\Thread;
+
 /**
  * Class ThreadType
  *
@@ -40,16 +43,6 @@ class ThreadType extends AbstractType
                     'label' => 'forum.sublabel',
                     'error_bubbling' => true,
                 ]
-            )
-            ->add(
-                'post',
-                CollectionType::class,
-                [
-                    'entry_type' => PostType::class,
-                    'entry_options' => ['canSubscribeThread' => true],
-                    'allow_add' => false,
-                    'error_bubbling' => true,
-                ]
             );
 
         if ($options['hasModeratorAuthorization']) {
@@ -58,7 +51,7 @@ class ThreadType extends AbstractType
                 CheckboxType::class,
                 [
                     'translation_domain' => 'YosimitsoWorkingForumBundle',
-                    'label' => 'forum.doPin',
+                    'label' => 'forum.do_pin',
                     'required' => false,
                     'error_bubbling' => true
                 ]
@@ -75,11 +68,8 @@ class ThreadType extends AbstractType
             'hasModeratorAuthorization'
         ]);
 
-        $resolver->setDefaults(
-            [
-                'data_class' => 'Yosimitso\WorkingForumBundle\Entity\Thread',
-
-            ]
-        );
+        $resolver->setDefaults([
+            'data_class' => Thread::class
+        ]);
     }
 }

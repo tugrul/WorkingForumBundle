@@ -2,629 +2,667 @@
 
 namespace Yosimitso\WorkingForumBundle\Controller;
 
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityNotFoundException;
+use Knp\Component\Pager\PaginatorInterface;
 use Symfony\Component\Config\Definition\Exception\Exception;
+use Symfony\Component\Form\Extension\Core\Type\SubmitType;
+use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\RequestStack;
-use Yosimitso\WorkingForumBundle\Entity\Post;
-use Yosimitso\WorkingForumBundle\Entity\Thread;
-use Yosimitso\WorkingForumBundle\Entity\PostReport;
-use Yosimitso\WorkingForumBundle\Entity\File;
-use Yosimitso\WorkingForumBundle\Entity\Subscription as EntitySubscription;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use WhiteOctober\BreadcrumbsBundle\Model\Breadcrumbs;
+
+use Yosimitso\WorkingForumBundle\Entity\{Forum, Post, PostFile, PostVote,
+    Subforum, Thread, PostReport, File, Subscription, UserInterface};
+
+
+use Yosimitso\WorkingForumBundle\Exception\UrlChangedException;
 use Yosimitso\WorkingForumBundle\Form\MoveThreadType;
 use Yosimitso\WorkingForumBundle\Form\PostType;
 use Yosimitso\WorkingForumBundle\Form\ThreadType;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
-use Yosimitso\WorkingForumBundle\Util\Slugify;
-use Yosimitso\WorkingForumBundle\Controller\BaseController;
-use Yosimitso\WorkingForumBundle\Util\Subscription;
-use Yosimitso\WorkingForumBundle\Util\Thread as ThreadUtil;
-use Yosimitso\WorkingForumBundle\Util\FileUploader as FileUploadUtil;
-use Yosimitso\WorkingForumBundle\Twig\Extension\SmileyTwigExtension;
+use Yosimitso\WorkingForumBundle\Helper\SlugEntityManager;
+
+use Symfony\Component\Routing\Annotation\Route;
+
+use Symfony\Bundle\FrameworkBundle\Controller\Controller;
+
+use Symfony\Component\Translation\TranslatorInterface;
+
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\IsGranted;
+use Yosimitso\WorkingForumBundle\Subscription\SubscriptionManager;
 
 /**
  * Class ThreadController
+ *
+ * @Route("/thread")
  *
  * @package Yosimitso\WorkingForumBundle\Controller
  */
 class ThreadController extends BaseController
 {
-    protected $threadUtil;
-    protected $fileUploaderUtil;
-    protected $smileyTwigExtension;
 
-    public function __construct(ThreadUtil $threadUtil, FileUploadUtil $fileUploaderUtil, SmileyTwigExtension $smileyTwigExtension)
+    /**
+     * @var EntityManagerInterface
+     */
+    protected $entityManager;
+
+    /**
+     * @var Breadcrumbs
+     */
+    protected $breadcrumbs;
+
+    /**
+     * @var SlugEntityManager
+     */
+    protected $slugEntityManager;
+
+    /**
+     * @var TranslatorInterface
+     */
+    protected $translator;
+
+    /**
+     * @var SubscriptionManager
+     */
+    protected $subscriptionManager;
+
+    public function __construct(EntityManagerInterface $entityManager,
+                                Breadcrumbs $breadcrumbs, SlugEntityManager $slugEntityManager,
+                                TranslatorInterface $translator, SubscriptionManager $subscriptionManager)
     {
-       $this->threadUtil = $threadUtil;
-       $this->fileUploaderUtil = $fileUploaderUtil;
-       $this->smileyTwigExtension = $smileyTwigExtension;
+        $this->entityManager = $entityManager;
+        $this->breadcrumbs = $breadcrumbs;
+        $this->slugEntityManager = $slugEntityManager;
+        $this->translator = $translator;
+        $this->subscriptionManager = $subscriptionManager;
     }
+
     /**
      * Display a thread, save a post
-     * @param string  $subforum_slug
-     * @param string  $thread_slug
+     *
+     * @param string $forumSlug
+     * @param string $subforumSlug
+     * @param string $threadId
+     * @param string $threadSlug
      * @param Request $request
-     * @param int     $page
      *
      * @return Response
      */
-    public function indexAction($subforum_slug, $thread_slug, Request $request)
+    public function indexAction($forumSlug, $subforumSlug, $threadId, $threadSlug,
+                                Request $request, PaginatorInterface $paginator)
     {
-        $subforum = $this->em->getRepository('YosimitsoWorkingForumBundle:Subforum')->findOneBySlug($subforum_slug);
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneBySlug($thread_slug);
-        
-        if (is_null($thread) || is_null($subforum)) {
-            throw new \Exception('Thread not found', 404);
+        $entityManager = $this->entityManager;
+
+        // TODO: log exception reasons
+        try {
+            /**
+             * @var Forum $forum
+             * @var Subforum $subforum
+             * @var Thread $thread
+             */
+            list($forum, $subforum, $thread) = $this->slugEntityManager
+                ->getThreadBySlug($forumSlug, $subforumSlug, $threadSlug, $threadId);
+        } catch (EntityNotFoundException $exception) {
+            $this->createNotFoundException('Not found', $exception);
+        } catch (UrlChangedException $exception) {
+            return $this->redirect($exception->getActualUrl());
         }
 
-        $anonymousUser = (is_null($this->user)) ? true : false;
+        $this->breadcrumbs
+            ->addRouteItem('Forum', 'workingforum_index')
+            ->addRouteItem($forum->getName(), 'workingforum_forum', ['forumSlug' => $forum->getSlug()])
+            ->addRouteItem($subforum->getName(), 'workingforum_subforum', [
+                'forumSlug' => $forum->getSlug(),
+                'subforumSlug' => $subforum->getSlug()])
+            ->addItem($thread->getLabel());
 
-        if (!$this->authorization->hasSubforumAccess($subforum)) { // CHECK IF USER HAS AUTHORIZATION TO VIEW THIS THREAD
-            return $this->templating->renderResponse('@YosimitsoWorkingForum/Thread/thread.html.twig',
-                [
-                    'subforum'    => $subforum,
-                    'thread'      => $thread,
-                    'forbidden'   => true,
-                    'forbiddenMsg' => $this->authorization->getErrorMessage()
-                ]
-            );
-
+        if ($thread->getResolved()) {
+            $this->addFlash('success', $this->translator->trans('forum.thread_resolved'));
         }
-            $autolock = $this->threadUtil->isAutolock($thread); // CHECK IF THREAD IS AUTOMATICALLY LOCKED (TOO OLD?)
-            $listSmiley = $this->smileyTwigExtension->getListSmiley(); // Smileys available for markdown
 
-            $my_post = new Post($this->user, $thread);
-            
-            if (!$this->container->getParameter('yosimitso_working_forum.thread_subscription')['enable']) { // SUBSCRIPTION SYSTEM DISABLED
-                $canSubscribeThread = false;
-            } else {
-                $canSubscribeThread = (empty($this->em->getRepository('YosimitsoWorkingForumBundle:Subscription')->findBy(['thread' => $thread, 'user' => $this->user]))); // HAS ALREADY SUBSCRIBED ?  
-            }
-            
-            $form = $this->createForm(PostType::class, $my_post, ['canSubscribeThread' => $canSubscribeThread]); // create form for posting
-            $form->handleRequest($request);
+        $postRepository = $entityManager->getRepository(Post::class);
 
-            if ($form->isSubmitted()) { // USER SUBMIT HIS POST
+        $postQuery = $postRepository->getPostWithVoteCountByThread($thread);
 
-                if (!$anonymousUser && $this->user->isBanned()) // USER IS BANNED CAN'T POST
-                {
-                    $this->flashbag->add(
-                        'error',
-                        $this->translator->trans('message.banned', [], 'YosimitsoWorkingForumBundle')
-                    )
-                    ;
-
-                    return $this->redirect($this->generateUrl('workingforum', []));
-                }
-
-                if ($autolock) // THREAD IS LOCKED CAUSE TOO OLD ACCORDING TO PARAMETERS
-                {
-                    $this->flashbag->add(
-                        'error',
-                        $this->translator->trans('thread_too_old_locked', [], 'YosimitsoWorkingForumBundle')
-                    );
-
-                    return $this->redirect($this->generateUrl('workingforum_thread', ['subforum_slug' => $subforum_slug, 'thread_slug' => $thread_slug]));
-                }
-
-                if ($form->isValid()) {
-
-                    $subforum->newPost($this->user); // UPDATE SUBFORUM STATISTIC
-                    $thread->addReply($this->user); // UPDATE THREAD STATISTIC
-                    $postQuery = $this->em
-                        ->getRepository('YosimitsoWorkingForumBundle:Post')
-                        ->findByThread($thread->getId())
-                    ;
-                    $post_list =  $this->threadUtil->paginate($postQuery);
-
-                    if (!$anonymousUser) {
-                        $this->user->addNbPost(1);
-                        $this->em->persist($this->user);
-                    }
-
-                    $this->em->persist($thread);
-                    try { // COULD FAILED IF EVENTS THROW EXCEPTIONS
-                        $this->em->persist($my_post);
-                    } catch (\Exception $e) {
-                        $this->flashbag->add(
-                            'error',
-                            $e->getMessage()
-                        );
-
-                        return $this->redirect(
-                            $this->generateUrl(
-                                'workingforum_thread',
-                                ['subforum_slug' => $subforum_slug, 'thread_slug' => $thread_slug, 'page' => $post_list->getPageCount()]
-                            ));
-                    }
-
-                    $this->em->persist($my_post);
-                    $this->em->persist($subforum);
-
-                    if (!empty($form->getData()->getFilesUploaded())) {
-                        $file = $this->fileUploaderUtil->upload($form->getData()->getFilesUploaded(), $my_post);
-                        if (!$file) { // FILE UPLOAD FAILED
-
-                            $this->flashbag->add(
-                                'error',
-                                $this->fileUploaderUtil->getErrorMessage()
-                            );
-                            return $this->redirect(
-                                $this->generateUrl(
-                                    'workingforum_thread',
-                                    ['subforum_slug' => $subforum_slug, 'thread_slug' => $thread_slug, 'page' => $post_list->getPageCount()]
-                                ));
-                        }
-                        $my_post->addFiles($file);
-                    }
-
-                    $this->em->flush();
-
-                    $this->flashbag->add(
-                        'success',
-                        $this->translator->trans('message.posted', [], 'YosimitsoWorkingForumBundle')
-                    );
-
-                    return $this->redirect($this->generateUrl('workingforum_thread',
-                        ['subforum_slug' => $subforum_slug, 'thread_slug' => $thread_slug, 'page' => $post_list->getPageCount() ]
-                    )
-                    );
-                } else {
-                    $this->flashbag->add(
-                        'error',
-                        $this->translator->trans('message.posted', [], 'YosimitsoWorkingForumBundle')
-                    );
-
-                }
-            }
-
-        $postQuery = $this->em
-            ->getRepository('YosimitsoWorkingForumBundle:Post')
-            ->findByThread($thread->getId())
-        ;
-        $post_list = $this->threadUtil->paginate($postQuery);
-
-        $hasAlreadyVoted = $this->em->getRepository('YosimitsoWorkingForumBundle:PostVote')->getThreadVoteByUser($thread, $this->user);
-
-        $parameters  = [ // PARAMETERS USED BY TEMPLATE
-            'dateFormat' => $this->container->getParameter('yosimitso_working_forum.date_format'),
-            'thresholdUsefulPost' => $this->container->getParameter('yosimitso_working_forum.vote')['threshold_useful_post'],
-            'fileUpload' => $this->container->getParameter('yosimitso_working_forum.file_upload'),
-            'allowModeratorDeleteThread' => $this->getParameter('yosimitso_working_forum.allow_moderator_delete_thread')
-            ];
-        $parameters['fileUpload']['maxSize'] = $this->fileUploaderUtil->getMaxSize();
-        
-        $actionsAvailables = [
-            'setResolved' => (!$anonymousUser) && (($this->user->getId() == $thread->getAuthor()->getId()) || $this->authorization->hasModeratorAuthorization()),
-            'quote' => (!$anonymousUser && !$thread->getLocked()),
-            'report' => (!$anonymousUser),
-            'post' => (!$anonymousUser && !$autolock),
-            'subscribe' => $canSubscribeThread,
-            'moveThread' => ($this->authorization->hasModeratorAuthorization()) ? $this->createForm(MoveThreadType::class)->createView() : false
-        ];
-        
-        return $this->templating->renderResponse('@YosimitsoWorkingForum/Thread/thread.html.twig',
-            [
-                'subforum'    => $subforum,
-                'thread'      => $thread,
-                'post_list'   => $post_list,
-                'parameters' => $parameters,
-                'form'        => (isset($form)) ? $form->createView() : null,
-                'listSmiley'  => $listSmiley,
-                'forbidden'   => false,
-                'request'     => $request,
-                'autolock' => $autolock,
-                'hasAlreadyVoted' => $hasAlreadyVoted,
-                'actionsAvailables' => $actionsAvailables
-            ]
+        $postList = $paginator->paginate(
+            $postQuery,
+            $request->query->get('page',1),
+            $this->getParameter('yosimitso_working_forum.post_per_page')
         );
+
+        $user = $this->getUser();
+
+        if (empty($user)) {
+            return $this->render('@YosimitsoWorkingForum/Thread/thread_anonymous.html.twig', [
+                'forum' => $forum,
+                'subforum' => $subforum,
+                'thread' => $thread,
+                'postList' => $postList,
+                'postRepository' => $postRepository
+            ]);
+        }
+
+        $userPosts = $thread->getPosts()->filter(function (Post $post) use ($user) {
+            return $post->getUser()->getId() === $user->getId();
+        });
+
+        $form = $this->createForm(PostType::class, ['subscribe' => $userPosts->count() === 0], [
+            'canSubscribeThread' => $this->canSubscribeThread(),
+            'canUploadFiles' => $this->canUploadFiles()]);
+
+        $form->add('submit', SubmitType::class, [
+            'label' => 'forum.submit_post'
+        ]);
+
+        $form->handleRequest($request);
+
+        // user submit his post
+        if ($form->isSubmitted()) {
+
+            try {
+
+                $this->denyAccessUnlessUser();
+
+                // thread is locked cause too old according to parameters
+                if ($thread->getLocked()) {
+                    throw new \Exception($this->translator->trans('thread_too_old_locked',
+                        [], 'YosimitsoWorkingForumBundle'));
+                }
+
+                if (!$form->isValid()) {
+                    throw new \Exception( $this->translator->trans('message.posted',
+                        [], 'YosimitsoWorkingForumBundle'));
+                }
+
+                $post = $this->createPost($user, $thread, $form->getData())
+                    ->setIpAddress($request->getClientIp());
+
+                $entityManager->flush();
+
+                $this->subscriptionManager->notify($post);
+
+                $this->addFlash('success', $this->translator->trans('message.posted', [], 'YosimitsoWorkingForumBundle'));
+
+            } catch (AccessDeniedException $ex) {
+
+                // $this->addFlash('danger', $this->translator->trans('message.banned', [], 'YosimitsoWorkingForumBundle'));
+                $this->addFlash('danger', $ex->getMessage());
+                return $this->redirectToRoute('workingforum_index');
+
+            } catch (\Throwable $ex) {
+
+                $this->addFlash('danger', $ex->getMessage());
+
+            }
+
+            $pageCount = $postList->getPageCount();
+
+            return $this->redirectToRoute('workingforum_thread', [
+                'forumSlug' => $forumSlug,
+                'subforumSlug' => $subforumSlug,
+                'threadSlug' => $threadSlug,
+                'threadId' => $thread->getId(),
+                'page' => $pageCount > 1 ? $pageCount : null
+            ]);
+        }
+
+        $votedPosts = $entityManager->getRepository(PostVote::class)
+            ->findBy(['user' => $user, 'thread' => $thread]);
+
+        $votedPosts = array_map(function(PostVote $postVote){
+            return $postVote->getPost()->getId();
+        }, $votedPosts);
+
+        // $parameters['fileUpload']['maxSize'] = $this->getMaxUploadSize();
+
+        return $this->render('@YosimitsoWorkingForum/Thread/thread.html.twig', [
+            'forum' => $forum,
+            'subforum' => $subforum,
+            'thread' => $thread,
+            'postList' => $postList,
+            'form' => $form->createView(),
+            'votedPosts' => $votedPosts,
+            'postRepository' => $postRepository,
+            'subscription' => $this->getSubscription($thread, $user),
+            'moveThreadForm' => $this->createForm(MoveThreadType::class, $thread, [
+                'action' => $this->generateUrl('workingforum_move_thread', ['threadId' => $thread->getId()])
+            ])->createView()
+        ]);
+
 
     }
 
+    protected function getSubscription(Thread $thread, UserInterface $user) : ?Subscription
+    {
+        return !$this->canSubscribeThread() ? null :
+            $this->entityManager->getRepository(Subscription::class)
+            ->findOneBy(['thread' => $thread, 'user' => $user]);
+    }
+
+    protected function canSubscribeThread()
+    {
+        $parameters = $this->getParameter('yosimitso_working_forum.thread_subscription');
+
+        return !empty($parameters['enable']);
+    }
+
+    protected function canUploadFiles()
+    {
+        $parameters = $this->getParameter('yosimitso_working_forum.file_upload');
+
+        return !empty($parameters['enable']);
+    }
+
+    protected function subscribeThread(Thread $thread, UserInterface $user)
+    {
+        if (!$this->canSubscribeThread()) {
+            return;
+        }
+
+        $subscription = new Subscription();
+        $subscription->setThread($thread);
+        $subscription->setUser($user);
+
+        $this->entityManager->persist($subscription);
+    }
+
+    protected function checkUserFlooding(UserInterface $user)
+    {
+        $floodLimit = $this->getParameter('yosimitso_working_forum.post_flood_sec');
+
+        $limitTime = new \DateTime('-' . $floodLimit . ' seconds');
+
+        /**
+         * @var Post
+         */
+        $lastPost = $this->entityManager->getRepository(Post::class)
+            ->getLastPostOfUser($user);
+
+        // user is flooding
+        if (!empty($lastPost) && $limitTime <= $lastPost->getCreateDate()) {
+            throw new \Exception($this->translator->trans('forum.error_flood',
+                ['%second%' => $floodLimit], 'YosimitsoWorkingForumBundle'));
+        }
+    }
+
+    protected function createPost(UserInterface $user, Thread $thread, array $formData)
+    {
+        $this->checkUserFlooding($user);
+
+        if (!empty($formData['subscribe'])) {
+            $this->subscribeThread($thread, $user);
+        }
+
+        $post = new Post();
+        $post->setUser($user);
+        $post->setThread($thread);
+        $post->setContent($formData['content']);
+        $post->setPublished(true);
+
+        $this->entityManager->persist($post);
+
+        if (!empty($formData['files'])) {
+            $this->persistUploadedFiles($post, $formData['files']);
+        }
+
+        return $post;
+    }
+
+    protected function persistUploadedFiles($post, $files)
+    {
+        $config = $this->getParameter('yosimitso_working_forum.file_upload');
+
+        if (empty($config['enable'])) {
+            throw new \Exception($this->translator->trans(
+                'forum.file_upload.error.not_enabled',
+                'YosimitsoWorkingForumBundle'
+            ));
+        }
+
+        if (!empty($config['max_size_ko'])) {
+
+            $maxSize = $config['max_size_ko'];
+
+            $totalSize = array_reduce($files, function($carry, $item) {
+                return $carry + $item->getSize() / 1000;
+            }, 0);
+
+            if ($totalSize > $maxSize) {
+                throw new \Exception($this->translator->trans(
+                    'forum.file_upload.error.max_size_exceeded',
+                    ['%max_size%' => $maxSize],
+                    'YosimitsoWorkingForumBundle'
+                ));
+            }
+
+        }
+
+        foreach ($files as $file) {
+
+            if ($file->getError()) {
+                throw new \Exception($this->translator->trans(
+                    'forum.file_upload.error.default',
+                    [],
+                    'YosimitsoWorkingForumBundle'));
+            }
+
+            if (!in_array($file->getMimeType(), $config['accepted_format'], true)) {
+                throw new \Exception($this->translator->trans(
+                    'forum.file_upload.error.invalid_format',
+                    ['%format%' => $file->getMimeType()],
+                    'YosimitsoWorkingForumBundle'
+                ));
+            }
+
+            $postFile = new PostFile();
+            $postFile->setPost($post);
+            $postFile->setFile($file);
+            $postFile->setOriginalName($file->getClientOriginalName());
+            $postFile->setExtension($file->guessExtension());
+            $this->entityManager->persist($postFile);
+        }
+
+    }
+
+    protected function getMaxUploadSize()
+    {
+        $config = $this->getParameter('yosimitso_working_forum.file_upload');
+        return !empty($config['max_size_ko']) ? $config['max_size_ko'] : 0;
+    }
 
     /**
      * New thread
-     * @param $subforum_slug
+     *
+     * @Security("has_role('ROLE_USER')")
+     *
+     * @param $forumSlug
+     * @param $subforumSlug
      * @param Request $request
+     *
      * @return RedirectResponse|Response
      * @throws \Exception
      */
-    public function newAction($subforum_slug, Request $request)
+    public function newAction($forumSlug, $subforumSlug, Request $request)
     {
-        if (is_null($this->user)) {
-            throw new \Exception("Anonymous user aren't allowed to create threads",
-                403);
+        try {
+            list($forum, $subforum) = $this->slugEntityManager->getSubforumBySlug($forumSlug, $subforumSlug);
+        } catch (EntityNotFoundException $exception) {
+            $this->createNotFoundException('Not found', $exception);
+        } catch (AccessDeniedException $exception) {
+
+            $this->addFlash('danger', $exception->getMessage());
+
+            return $this->redirectToRoute('workingforum_index');
         }
 
-        $subforum = $this->em->getRepository('YosimitsoWorkingForumBundle:Subforum')->findOneBySlug($subforum_slug);
+        $this->breadcrumbs
+            ->addRouteItem('Forum', 'workingforum_index')
+            ->addRouteItem($forum->getName(), 'workingforum_forum',  ['forumSlug' => $forumSlug])
+            ->addRouteItem($subforum->getName(), 'workingforum_subforum', ['forumSlug' => $forumSlug,
+                'subforumSlug' => $subforumSlug])
+            ->addItem('forum.new_thread');
 
-          if (!$this->authorization->hasSubforumAccess($subforum)) {
-              $this->flashbag->add(
-                      'error',
-                      $this->translator->trans($this->authorization->getErrorMessage(), [], 'YosimitsoWorkingForumBundle')
-                  )
-              ;
-              return $this->redirect($this->generateUrl('workingforum_forum'));
 
-        }
 
-        $my_thread = new Thread($this->user, $subforum);
-        $my_post = new Post($this->user);
-        $my_thread->addPost($my_post);
+        $user = $this->getUser();
 
-        $listSmiley = $this->smileyTwigExtension->getListSmiley(); // Smileys available for markdown
-        $form = $this->createForm(ThreadType::class, $my_thread, ['hasModeratorAuthorization' => $this->authorization->hasModeratorAuthorization()]);
+        $thread = new Thread();
+        $thread->setAuthor($user);
+        $thread->setSubforum($subforum);
+
+        $form = $this->createFormBuilder(['thread' => $thread, 'post' => ['subscribe' => true]])
+            ->add('thread', ThreadType::class, [
+                'hasModeratorAuthorization' => $this->hasModeratorAuthorization()])
+            ->add('post', PostType::class, [
+                'canSubscribeThread' => $this->canSubscribeThread(),
+                'canUploadFiles' => $this->canUploadFiles() ])
+            ->add('submit', SubmitType::class, [
+                'label' => 'forum.create_thread'
+            ])
+            ->getForm();
+
         $form->handleRequest($request);
 
+        if ($form->isSubmitted()) {
 
-        if ($form->isSubmitted() && $form->isValid()) {
+            try {
 
-            $subforum->newThread($this->user); // UPDATE STATISTIC
+                $this->denyAccessUnlessUser();
 
-            $this->user->addNbPost(1);
-            $this->em->persist($this->user);
-
-            $my_post->setThread($my_thread); // ATTACH TO THREAD
-            $this->em->persist($my_thread);
-            $this->em->persist($subforum);
-
-            $this->em->flush();
-
-            $my_thread->setSlug($my_thread->getId() . '-' . Slugify::convert($my_thread->getLabel())); // SLUG NEEDS THE ID
-            $this->em->persist($my_thread);
-
-            if (!empty($form->getData()->getPost()[0]->getFilesUploaded())) {
-                $file = $this->fileUploaderUtil->upload($form->getData()->getPost()[0]->getFilesUploaded(), $my_post);
-                if (!$file) { // FILE UPLOAD FAILED
-
-                    $this->flashbag->add(
-                        'error',
-                        $this->fileUploaderUtil->getErrorMessage()
-                    );
-                    return $this->redirect(
-                        $this->generateUrl(
-                            'workingforum_new_thread',
-                            ['subforum_slug' => $subforum_slug]
-                        ));
+                if (!$form->isValid()) {
+                    throw new \Exception( $this->translator->trans('message.posted',
+                        [], 'YosimitsoWorkingForumBundle'));
                 }
-                $my_post->addFiles($file);
+
+                $formData = $form->getData();
+
+                $thread = $formData['thread'];
+
+                $post = $this->createPost($user, $thread, $formData['post'])
+                    ->setIpAddress($request->getClientIp());
+
+                $this->entityManager->persist($thread);
+
+                $this->entityManager->flush();
+
+                $this->subscriptionManager->notify($post);
+
+                $this->addFlash('success',
+                    $this->translator->trans('message.threadCreated', [], 'YosimitsoWorkingForumBundle')
+                );
+
+                return $this->redirectToRoute('workingforum_thread', [
+                    'forumSlug' => $forum->getSlug(),
+                    'subforumSlug' => $subforum->getSlug(),
+                    'threadSlug' => $thread->getSlug(),
+                    'threadId' => $thread->getId()
+                ]);
+
+            } catch (AccessDeniedException $ex) {
+
+                // $this->addFlash('danger', $this->translator->trans('message.banned', [], 'YosimitsoWorkingForumBundle'));
+                $this->addFlash('danger', $ex->getMessage());
+                return $this->redirectToRoute('workingforum_index');
+
+            } catch (\Throwable $ex) {
+
+                $this->addFlash('danger', $ex->getMessage());
+
             }
-            $this->em->flush();
-
-            $this->flashbag->add(
-                'success',
-                $this->translator->trans('message.threadCreated', [], 'YosimitsoWorkingForumBundle')
-            )
-            ;
-
-            return $this->redirect($this->generateUrl('workingforum_thread', ['subforum_slug' => $subforum_slug, 'thread_slug' => $my_thread->getSlug()])); // REDIRECT TO THE NEW THREAD
 
         }
 
-        $parameters  = [ // PARAMETERS USED BY TEMPLATE
-            'fileUpload' => $this->getParameter('yosimitso_working_forum.file_upload')
-        ];
-        $parameters['fileUpload']['maxSize'] = $this->fileUploaderUtil->getMaxSize();
-
-        return $this->templating->renderResponse('@YosimitsoWorkingForum/Thread/new.html.twig',
-            [
-                'subforum'   => $subforum,
-                'form'       => $form->createView(),
-                'listSmiley' => $listSmiley,
-                'request'    => $request,
-                'parameters' => $parameters
-            ]
-        );
+        return $this->render('@YosimitsoWorkingForum/Thread/new.html.twig',[
+            'subforum'   => $subforum,
+            'form'       => $form->createView(),
+            'fileUploadMaxSize' => $this->getMaxUploadSize()
+        ]);
     }
 
     /**
      * The thread is resolved
      *
-     * @param $subforum_slug
-     * @param $thread_slug
+     * @Route("/{threadId}/resolved", name="resolve_thread", requirements={"threadId":"\d+"}, options={"expose": true})
+     *
+     * @IsGranted("ROLE_USER")
+     *
+     * @param $threadId
      *
      * @return RedirectResponse
      * @throws \Exception
      */
-    function resolveAction($subforum_slug, $thread_slug)
+    public function resolveAction($threadId)
     {
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneBySlug($thread_slug);
+        $thread = $this->getThreadById($threadId);
 
-        if (is_null($thread)) {
-            throw new \Exception("Thread error",
-                500
-            );
-
-        }
-
-        if (!$this->authorization->hasModeratorAuthorization() && $this->user->getId() != $thread->getAuthor()->getId()) // ONLY ADMIN MODERATOR OR THE THREAD'S AUTHOR CAN SET A THREAD AS RESOLVED
-        {
-            throw new \Exception('You are not authorized to do this', 403);
+        // only admin, moderator or the thread's author can set a thread as resolved
+        if ($this->getUser()->getId() !== $thread->getAuthor()->getId()) {
+            $this->denyAccessUnlessModerator();
         }
 
         $thread->setResolved(true);
-        $this->em->persist($thread);
-        $this->em->flush();
+        $this->entityManager->persist($thread);
+        $this->entityManager->flush();
 
-        $this->flashbag->add(
-                 'success',
-                 $this->translator->trans('message.threadResolved', [], 'YosimitsoWorkingForumBundle')
-             )
-        ;
-
-        return $this->redirect(
-            $this->generateUrl('workingforum_thread',
-                [
-                    'thread_slug'   => $thread_slug,
-                    'subforum_slug' => $subforum_slug,
-                ]
-            )
-        );
+        return $this->json([
+            'success' => true,
+            'state' => [
+                'reload' => true
+            ]
+        ]);
     }
 
     /**
      * A moderator pin a thread
+     *
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
-     * @param $subforum_slug
-     * @param $thread_slug
+     *
+     * @Route("/{threadId}/pin", name="pin_thread", requirements={"threadId":"\d+"}, options={"expose": true})
+     *
+     * @param $threadId
+     *
      * @return RedirectResponse
-     * @throws \Exception
      */
-    function pinAction($subforum_slug, $thread_slug)
+    public function pinAction($threadId)
     {
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneBySlug($thread_slug);
+        $thread = $this->getThreadById($threadId);
 
-        if (is_null($thread)) {
-            throw new \Exception("Thread error",
-                500
-            );
-
-        }
-
-        if ($thread->getPin())
-        {
-            throw new \Exception("Thread already pinned",500);
+        if ($thread->getPin()) {
+            return $this->json([
+                'success' => false,
+                'message' => 'thread already pinned'
+            ]);
         }
 
         $thread->setPin(true);
-        $this->em->persist($thread);
-        $this->em->flush();
+        $this->entityManager->persist($thread);
+        $this->entityManager->flush();
 
-        $this->flashbag
-            ->add(
-                'success',
-                $this->translator->trans('message.threadPinned', [], 'YosimitsoWorkingForumBundle')
-            )
-        ;
+        $this->addFlash('success',
+            $this->translator->trans('message.threadPinned', [], 'YosimitsoWorkingForumBundle'));
 
-        return $this->redirect(
-            $this->generateUrl('workingforum_thread',
-                [
-                    'thread_slug'   => $thread_slug,
-                    'subforum_slug' => $subforum_slug,
-                ]
-            )
-        );
+        return $this->json([
+            'success' => true,
+            'state' => [
+                'reload' => true
+            ]
+        ]);
     }
 
-    /**
-     * A user report a thread
-     * @param $post_id
-     * @return Response
-     */
-    function reportAction($post_id)
-    {
-        if (is_null($this->user)) {
-            throw new \Exception("user missing error",
-                403
-            );
-
-        }
-        
-        $check_already = $this->em->getRepository('YosimitsoWorkingForumBundle:PostReport')
-                            ->findOneBy(['user' => $this->user->getId(), 'post' => $post_id])
-        ;
-        $post = $this->em->getRepository('YosimitsoWorkingForumBundle:Post')->findOneById($post_id);
-
-        if (is_null($check_already) && empty($post->getModerateReason) && !is_null($this->user)) // THE POST HASN'T BEEN REPORTED AND NOT ALREADY MODERATED
-        {
-            $post = $this->em->getRepository('YosimitsoWorkingForumBundle:Post')->findOneById($post_id);
-            if (!is_null($post)) {
-                $report = new PostReport;
-                $report->setPost($post)
-                       ->setUser($this->user)
-                ;
-                $this->em->persist($report);
-                $this->em->flush();
-
-                return new Response(json_encode('true'), 200);
-            }
-            else {
-                return new Response(json_encode('false'), 500);
-            }
-        }
-        else // ALREADY WARNED BUT THAT'S OK, THANKS ANYWAY
-        {
-            return new Response(json_encode('true'), 200);
-        }
-
-    }
 
     /**
      * The thread is locked by a moderator or admin
      *
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
      *
-     * @param $subforum_slug
-     * @param $thread_slug
+     * @Route("/{threadId}/lock", name="lock_thread", requirements={"threadId":"\d+"}, options={"expose": true})
+     *
+     * @param $threadId
      *
      * @return RedirectResponse
      */
-    function lockAction($subforum_slug, $thread_slug)
+    public function lockAction($threadId)
     {
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneBySlug($thread_slug);
-
-        if (is_null($thread)) {
-            throw new Exception("Thread can't be found", 500);
-
-        }
+        $thread = $this->getThreadById($threadId);
 
         $thread->setLocked(true);
-        $this->em->persist($thread);
-        $this->em->flush();
+        $this->entityManager->persist($thread);
+        $this->entityManager->flush();
 
-        $this->flashbag->add(
-            'success',
-            $this->translator->trans('message.threadLocked', [], 'YosimitsoWorkingForumBundle')
-        )
-        ;
+        $this->addFlash('success',
+            $this->translator->trans('message.threadLocked', [], 'YosimitsoWorkingForumBundle'));
 
-        return $this->redirect(
-            $this->generateUrl('workingforum_thread',
-                [
-                    'thread_slug'   => $thread_slug,
-                    'subforum_slug' => $subforum_slug,
-                ]
-            )
-        );
-
+        return $this->json([
+            'success' => true,
+            'state' => [
+                'reload' => true
+            ]
+        ]);
     }
 
     /**
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     *
+     * @Route("/{threadId}/move", name="move_thread", requirements={"threadId":"\d+"}, options={"expose": true})
+     *
+     * @param $threadId
      * @param Request $request
+     *
      * @return Response
      */
-    public function moveThreadAction(Request $request)
+    public function moveThreadAction($threadId, Request $request)
     {
-        $threadId = $request->get('threadId');
-        $target = $request->get('target');
 
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneById($threadId);
-        $current_subforum = $thread->getSubforum();
-        $current_nbReplies = $thread->getNbReplies();
-        $target = $this->em->getRepository('YosimitsoWorkingForumBundle:Subforum')->findOneById($target);
+        $thread = $this->getThreadById($threadId);
 
-        if (is_null($thread) || is_null($target))
-        {
-            return new Response(null,500);
+        $form = $this->createForm(MoveThreadType::class, $thread);
+
+        if (!$form->isSubmitted()) {
+            throw new \Exception('move thread form is not submitted');
         }
 
-        $current_subforum->setNbThread($current_subforum->getNbThread() - 1);
-        $current_subforum->setNbPost($current_subforum->getNbPost() - $current_nbReplies);
-        $thread->setSubforum($target);
-        $target->setNbThread($target->getNbThread() + 1);
-        $target->setNbPost($target->getNbPost() + $current_nbReplies);
+        if ($form->isValid()) {
+            throw new \Exception('move thread form is not valid');
+        }
 
-        $this->em->persist($thread);
-        $this->em->persist($current_subforum);
-        $this->em->persist($target);
-        $this->em->flush();
+        $this->entityManager->persist($thread);
+        $this->entityManager->flush();
 
-        return new Response(json_encode(['res' => 'true', 'targetLabel' => $target->getName()]), 200);
+        $this->addFlash('success', 'Thread moved');
+
+        $subforum = $thread->getSubforum();
+
+        return $this->redirectToRoute('workingforum_thread', [
+            'forumSlug' => $subforum->getForum()->getSlug(),
+            'subforumSlug' => $subforum->getSlug(),
+            'threadSlug' => $thread->getSlug(),
+            'threadId' => $thread->getId()
+        ]);
     }
 
     /**
      * The thread is deleted by modo or admin
+     *
      * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
-     * @param $threadSlug
-     * @return RedirectResponse
-     */
-    public function deleteThreadAction($threadSlug)
-    {
-        if (!$this->getParameter('yosimitso_working_forum.allow_moderator_delete_thread'))
-        {
-            throw new Exception('Thread deletion is not allowed');
-        }
-
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneBySlug($threadSlug);
-        $subforum = $this->em->getRepository('YosimitsoWorkingForumBundle:Subforum')->findOneById($thread->getSubforum()->getId());
-
-        if (is_null($thread))
-        {
-            throw new Exception('Thread cannot be found');
-        }
-        if (is_null($subforum))
-        {
-            throw new Exception('Thread cannot be found');
-        }
-
-        $subforum->addNbThread(-1);
-        $subforum->addNbPost(-$thread->getnbReplies());
-
-        $this->em->persist($subforum);
-        $this->em->remove($thread);
-        $this->em->flush();
-
-        $this->flashbag->add(
-            'success',
-            $this->translator->trans('message.thread_deleted', [], 'YosimitsoWorkingForumBundle')
-        )
-        ;
-
-        return $this->redirect(
-            $this->generateUrl('workingforum_subforum',
-                [
-                    'subforum_slug' => $subforum->getSlug(),
-                ]
-            )
-        );
-    }
-
-    /**
+     * @Route("/{threadId}/delete", name="delete_thread", requirements={"threadId":"\d+"}, options={"expose": true})
      *
      * @param $threadId
-     * @return Response
+     * @return RedirectResponse
      */
-    public function cancelSubscriptionAction($threadId)
+    public function deleteThreadAction($threadId)
     {
-        if (is_null($this->user)) {
-            return new Response(null, 500);
-        }
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneById($threadId);
-        if (is_null($thread)) {
-            return new Response(null, 500);
+        if (!$this->getParameter('yosimitso_working_forum.allow_moderator_delete_thread') &&
+            $this->isGranted('ROLE_MODERATOR')) {
+            throw $this->createAccessDeniedException('Thread deletion is not allowed');
         }
 
-        $subscription = $this->em->getRepository('YosimitsoWorkingForumBundle:Subscription')->findOneBy(['user' => $this->user, 'thread' => $thread]);
+        $thread = $this->getThreadById($threadId);
 
-        if (!is_null($subscription)) {
-            $this->em->remove($subscription);
-            $this->em->flush();
-            return new Response(null, 200);
-        } else {
-            return new Response(null, 500);
-        }
+        $entityManager = $this->entityManager;
 
-    }
+        $thread = $entityManager->getRepository(Thread::class)->findOneBySlug($threadSlug);
 
-    /**
-     * An user wants to subscribe to a thread
-     * @param $threadId
-     * @return Response
-     */
-    public function addSubscriptionAction($threadId)
-    {
-        if (is_null($this->user)) {
-            return new Response(null, 500);
-        }
-        $thread = $this->em->getRepository('YosimitsoWorkingForumBundle:Thread')->findOneById($threadId);
-        if (is_null($thread)) {
-            return new Response(null, 500);
-        }
+        $subforum = $thread->getSubforum();
 
-        $checkSubscription = $this->em->getRepository('YosimitsoWorkingForumBundle:Subscription')->findOneBy(['user' => $this->user, 'thread' => $thread]);
+        $entityManager->remove($thread);
+        $entityManager->flush();
 
-        if (is_null($checkSubscription)) {
-            $subscription = new EntitySubscription($thread, $this->user);
-            $this->em->persist($subscription);
-            $this->em->flush();
-            return new Response(null, 200);
-        } else {
-            return new Response(null, 500);
-        }
+        $this->addFlash('success',
+            $this->translator->trans('message.thread_deleted', [], 'YosimitsoWorkingForumBundle'));
 
+        return $this->json([
+            'success' => true,
+            'state' => [
+                'location' => $this->generateUrl('workingforum_subforum', [
+                    'forumSlug' => $subforum->getForum()->getSlug(),
+                    'subforumSlug' => $subforum->getSlug()
+                ])
+            ]
+        ]);
     }
 
 

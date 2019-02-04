@@ -1,0 +1,22 @@
+{% for subforum in forum.subforums %}
+    {% set threadCount = threadRepository.getCountBySubforum(subforum) %}
+    {% set postCount = postRepository.getCountBySubforum(subforum) %}
+
+    {% embed '@YosimitsoWorkingForum/Common/Embed/subforum_row.html.twig' %}
+        {% block subforum_name %}
+            <a href="{{ path('workingforum_subforum',
+                {forumSlug:forum.slug, subforumSlug : subforum.slug }) }}">{{ subforum.name }}</a>
+        {% endblock %}
+        {% block subforum_stats %}
+            {{ threadCount | number_format }} {{ 'forum.thread_count' | trans }}<br />
+            {{ postCount | number_format }} {{ 'forum.post_count' | trans }}
+        {% endblock %}
+        {% block subforum_last_reply %}
+            {% if postCount > 0 %}
+                {% set lastPost = postRepository.getLastBySubforum(subforum) %}
+                {{ 'forum.last_reply_date' |trans }}<br />
+                {{ lastPost.createDate | date }}
+            {% endif %}
+        {% endblock %}
+    {% endembed %}
+{% endfor %}

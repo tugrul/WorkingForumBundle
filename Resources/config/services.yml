@@ -2,102 +2,38 @@ parameters:
 
 
 services:
-    yosimitso_workingforum_base_controller:
-        class: Yosimitso\WorkingForumBundle\Controller\BaseController
-        calls:
-          - ["setParameters",["@doctrine.orm.entity_manager","@yosimitso_workingforum_authorization","@=service('security.token_storage').getToken().getUser()","@session", "@translator", "@knp_paginator", "@templating"]]
+    # default configuration for services in *this* file
+    _defaults:
+        autowire: true      # Automatically injects dependencies in your services.
+        autoconfigure: true # Automatically registers your services as commands, event subscribers, etc.
+        public: false       # Allows optimizing the container by removing unused services; this also means
+                            # fetching services directly from the container via $container->get() won't work.
+                            # The best practice is to be explicit about your dependencies anyway.
 
-    yosimitso_workingforum_forum_controller:
-        class: Yosimitso\WorkingForumBundle\Controller\ForumController
-        parent: yosimitso_workingforum_base_controller
-        public: true
+    # makes classes in src/ available to be used as services
+    # this creates a service per class whose id is the fully-qualified class name
+    Yosimitso\WorkingForumBundle\:
+        resource: '../../*'
+        exclude: '../../{DependencyInjection,Entity,Migrations,Tests,Subscription/Subscriber,Kernel.php}'
 
-    yosimitso_workingforum_thread_controller:
-        class: Yosimitso\WorkingForumBundle\Controller\ThreadController
-        parent: yosimitso_workingforum_base_controller
-        public: true
-        arguments:
-          - "@yosimitso_workingforum_util_thread"
-          - "@yosimitso_workingforum_util_fileuploader"
-          - "@yosimitso_workingforum_smiley"
+    # controllers are imported separately to make sure services can be injected
+    # as action arguments even if you don't extend any base controller class
+    Yosimitso\WorkingForumBundle\Controller\:
+        resource: '../../Controller'
+        tags: ['controller.service_arguments']
 
-    yosimitso_workingforum_admin_controller:
-        class: Yosimitso\WorkingForumBundle\Controller\AdminController
-        parent: yosimitso_workingforum_base_controller
-        public: true
-        arguments:
-          - "@yosimitso_workingforum_smiley"
-
-    yosimitso_workingforum_search_controller:
-        class: Yosimitso\WorkingForumBundle\Controller\SearchController
-        parent: yosimitso_workingforum_base_controller
-        public: true
-
-    yosimitso_workingforum_post_controller:
-        class: Yosimitso\WorkingForumBundle\Controller\PostController
-        parent: yosimitso_workingforum_base_controller
-        public: true
-        arguments:
-          - "@yosimitso_workingforum_util_thread"
-
-    yosimitso_workingforum_smiley:
-        class: Yosimitso\WorkingForumBundle\Twig\Extension\SmileyTwigExtension
+    Yosimitso\WorkingForumBundle\Event\Handler\SlugableEvent:
         tags:
-            -  { name: twig.extension }
-        arguments: ["@request_stack", "@assets.packages"]
+            - { name: doctrine.event_listener, event: prePersist}
 
-    yosimitso_workingforum_quote:
-        class: Yosimitso\WorkingForumBundle\Twig\Extension\QuoteTwigExtension
+    Yosimitso\WorkingForumBundle\Event\Handler\ThreadAutolockEvent:
+        arguments:
+            $lockThreadOlderThan: '%yosimitso_working_forum.lock_thread_older_than%'
         tags:
-            -  { name: twig.extension }
-        arguments: ["@doctrine.orm.entity_manager", "@translator"]
-    yosimitso_workingforum_config:
-        class: Yosimitso\WorkingForumBundle\Twig\Extension\ConfigurationTwigExtension
-        tags:
-            - { name: twig.extension }
-        arguments: ["%yosimitso_working_forum.theme_color%"]
+            - { name: doctrine.event_listener, event: postLoad}
 
-    yosimitso_workingforum_authorization:
-        class: Yosimitso\WorkingForumBundle\Security\Authorization
-        arguments :
-            - "@security.authorization_checker"
-            - "@security.token_storage"
-            - "%yosimitso_working_forum.allow_anonymous_read%"
+    Yosimitso\WorkingForumBundle\Security\ExpressionLanguageProvider:
+        tags: ['security.expression_language_provider']
 
-    yosimitso_workingforum_util_thread:
-        class: Yosimitso\WorkingForumBundle\Util\Thread
-        arguments:
-            - "%yosimitso_working_forum.lock_thread_older_than%"
-            - "@knp_paginator"
-            - "%yosimitso_working_forum.post_per_page%"
-            - "@request_stack"
-
-    yosimitso_workingforum_util_fileuploader:
-        class: Yosimitso\WorkingForumBundle\Util\FileUploader
-        arguments:
-            - "@doctrine.orm.entity_manager"
-            - "%yosimitso_working_forum.file_upload%"
-            - "@translator"
-
-    yosimitso_workingforum_util_subscription:
-        class: Yosimitso\WorkingForumBundle\Util\Subscription
-        arguments:
-            - "@doctrine.orm.entity_manager"
-            - "@mailer"
-            - "@translator"
-            - "%yosimitso_working_forum.site_title%"
-            - "%swiftmailer.sender_address%"
-            - "@templating"
-
-
-    yosimitso_workingforum_listener.post:
-        class: Yosimitso\WorkingForumBundle\Event\PostEvent
-        arguments:
-            - "%yosimitso_working_forum.post_flood_sec%"
-            - "@translator"
-            - "@yosimitso_workingforum_util_subscription"
-            - "%yosimitso_working_forum.thread_subscription%"
-        tags:
-          - { name: doctrine.event_listener, event: prePersist}
-          - { name: doctrine.event_listener, event: postPersist}
+#    Yosimitso\WorkingForumBundle\Subscription\Subscriber\EmailSubscriber: ~
 

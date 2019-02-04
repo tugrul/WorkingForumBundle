@@ -4,10 +4,14 @@ namespace Yosimitso\WorkingForumBundle\Form;
 
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
+use Symfony\Component\Form\Extension\Core\Type\SubmitType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
-use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Yosimitso\WorkingForumBundle\Form\Type\MarkdownEditorType;
+
+use Yosimitso\WorkingForumBundle\Entity\Rules;
+
 
 /**
  * Class RulesEditType
@@ -23,13 +27,13 @@ class RulesEditType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder
-            ->add(
-                'content',
-                TextareaType::class,
-                [
-                    'attr' => ['class' => 'wf_textarea_post']
-                ]
-            );
+            ->add('lang', TextType::class, [
+                'label' => 'admin.rules.lang'
+            ])
+            ->add('content',MarkdownEditorType::class)
+            ->add('submit', SubmitType::class, [
+                'label' => 'admin.submit'
+            ]);
     }
 
     /**
@@ -37,11 +41,8 @@ class RulesEditType extends AbstractType
      */
     public function configureOptions(OptionsResolver $resolver)
     {
-        $resolver->setDefaults(
-            [
-                'data_class' => 'Yosimitso\WorkingForumBundle\Entity\Rules',
-
-            ]
-        );
+        $resolver->setDefaults([
+            'data_class' => Rules::class
+        ]);
     }
 }

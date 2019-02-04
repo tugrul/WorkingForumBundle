@@ -2,83 +2,279 @@
 
 namespace Yosimitso\WorkingForumBundle\Controller;
 
+use Symfony\Component\Routing\Annotation\Route;
+
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\Security;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\JsonResponse;
+
+use Yosimitso\WorkingForumBundle\Entity\Post;
+use Yosimitso\WorkingForumBundle\Entity\PostReportReview;
 use Yosimitso\WorkingForumBundle\Entity\PostVote;
-use Yosimitso\WorkingForumBundle\Util\Thread as ThreadUtil;
+use Yosimitso\WorkingForumBundle\Entity\Subforum;
+use Yosimitso\WorkingForumBundle\Entity\PostReport;
+
+use Sensio\Bundle\FrameworkExtraBundle\Configuration\IsGranted;
 
 /**
  * Class ThreadController
+ *
+ * @Route("/post")
  *
  * @package Yosimitso\WorkingForumBundle\Controller
  */
 class PostController extends BaseController
 {
-    protected $threadUtil;
+    protected $entityManager;
 
-    public function __construct(ThreadUtil $threadUtil)
+    public function __construct(EntityManagerInterface $entityManager)
     {
-         $this->threadUtil = $threadUtil;
+         $this->entityManager = $entityManager;
     }
+
     /**
-     * @param Request $request
-     * @return Response
      * vote for a post
+     *
+     * @Route("/{postId}/vote-up", name="vote_up", requirements={"postId": "\d+"}, options={"expose": true})
+     * @IsGranted("ROLE_USER")
+     *
+     * @param $postId
+     *
+     * @return Response
      */
-    public function voteUpAction(Request $request)
+    public function voteUpAction($postId)
     {
-        $postId = $request->get('postId');
+        $entityManager = $this->entityManager;
 
-        $post = $this->em->getRepository('YosimitsoWorkingForumBundle:Post')->findOneById($postId);
-        if (is_null($this->user)) {
-            return new Response(json_encode(['res' => 'false', 'errMsg' => 'You must be a registered user'], 403));
-        }
-        if (is_null($post)) {
-            return new Response(json_encode(['res' => 'false', 'errMsg' => 'Thread not found'], 500));
-        }
-        if ($post->getUser()->getId() == $this->user->getId()) { // CAN'T VOTE FOR YOURSELF
-            return new Response(json_encode(['res' => 'false', 'errMsg' => 'An user can\'t vote for his post'], 403));
-        }
-        if (!empty($post->getModerateReason()) || $post->getThread()->getLocked() || $this->threadUtil->isAutolock($post->getThread()) ) {
-            return new Response(json_encode(['res' => 'false', 'errMsg' => 'You can\'t vote for this post'], 403));
+        $post = $this->getPostById($postId);
+
+        $user = $this->getUser();
+
+        if ($post->getUser()->getId() === $user->getId()) {
+            return $this->json(['success' => false,
+                'message' => 'An user can\'t vote for his post']);
         }
 
-        $subforum = $this->em->getRepository('YosimitsoWorkingForumBundle:Subforum')->findOneById(
+        if ($post->getReviews()->count() > 0 || $post->getThread()->getLocked() ) {
+            return $this->json(['success' => false,
+                'message' => 'You can\'t vote for this post']);
+        }
+
+        $subforum = $entityManager->getRepository(Subforum::class)->findOneById(
             $post->getThread()->getSubforum()->getId()
         );
 
         if (is_null($subforum)) {
-            return new Response(json_encode(['res' => 'false', 'errMsg' => 'Internal error'], 500));
+            return $this->json(['success' => false,
+                'message' => 'Subforum not exists']);
         }
 
-        if (!$this->authorization->hasSubforumAccess(
-            $subforum
-        )) { // CHECK IF USER HAS AUTHORIZATION TO VIEW THIS THREAD
-            return new Response(json_encode(['res' => 'false'], 403));
+        $this->denyAccessUnlessGranted($subforum->getAllowedRoles());
+
+        $alreadyVoted = $entityManager->getRepository(PostVote::class)
+            ->findOneBy(['user' => $user, 'post' => $post]);
+
+        if (!empty($alreadyVoted)) {
+            return $this->json(['success' => false,
+                'message' => 'Already voted']);
         }
 
-        $alreadyVoted = $this->em->getRepository('YosimitsoWorkingForumBundle:PostVote')->findOneBy(
-            ['user' => $this->user, 'post' => $post]
-        );
+        $postVote = new PostVote();
+        $postVote->setPost($post)
+            ->setUser($user)
+            ->setVoteType(PostVote::VOTE_UP)
+            ->setThread($post->getThread());
 
-        if (is_null($alreadyVoted)) {
-            $postVote = new PostVote();
-            $postVote->setPost($post)
-                ->setUser($this->user)
-                ->setVoteType(PostVote::VOTE_UP)
-                ->setThread($post->getThread());
+        $entityManager->persist($postVote);
+        $entityManager->flush();
 
-            $post->addVoteUp();
 
-            $this->em->persist($postVote);
-            $this->em->persist($post);
-            $this->em->flush();
+        return $this->json([
+            'success' => true,
+            'state' => [
+                'data' => [
+                    'route' => 'workingforum_vote_down'
+                ]
+            ],
+            'voteCount' => $entityManager->getRepository(PostVote::class)
+                ->count(['post' => $post])]);
+    }
 
-            return new Response(json_encode(['res' => 'true', 'voteUp' => $post->getVoteUp()], 200));
-        } else {
-            return new Response(json_encode(['res' => 'false', 'errMsg' => 'Already voted'], 403));
+    /**
+     * @Route("/{postId}/vote-down", name="vote_down", requirements={"postId": "\d+"}, options={"expose": true})
+     * @IsGranted("ROLE_USER")
+     *
+     * @param $postId
+     *
+     * @return Response
+     */
+    public function voteDownAction($postId)
+    {
+        $entityManager = $this->entityManager;
+
+        $post = $this->getPostById($postId);
+
+        $user = $this->getUser();
+
+        $postVoteRepository = $entityManager->getRepository(PostVote::class);
+
+        $postVote = $postVoteRepository->findOneBy([
+            'post' => $post,
+            'user' => $user
+        ]);
+
+        if (empty($postVote)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'You don\'t have a vote for the post'
+            ]);
         }
+
+        $entityManager->remove($postVote);
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'state' => [
+                'data' => [
+                    'route' => 'workingforum_vote_up'
+                ]
+            ],
+            'voteCount' => $postVoteRepository->count(['post' => $post])
+        ]);
+    }
+
+    /**
+     * A user report a thread
+     *
+     * @Route("/{postId}/report", name="report_post", requirements={"postId": "\d+"}, options={"expose": true})
+     * @IsGranted("ROLE_USER")
+     *
+     * @param $postId
+     *
+     * @return Response
+     */
+    function reportAction($postId)
+    {
+        $entityManager = $this->entityManager;
+
+        $post = $this->getPostById($postId);
+
+        if (empty($post)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'post_not_exists'
+            ]);
+        }
+
+        if ($post->getReviews()->count() > 0) {
+            return $this->json([
+                'success' => false,
+                'message' => 'post_moderated_before'
+            ]);
+        }
+
+        $user = $this->getUser();
+
+        $postReport = $entityManager->getRepository(PostReport::class)
+            ->findOneBy(['user' => $user, 'post' => $post]);
+
+        // already warned but that's ok, thanks anyway
+        if (!empty($postReport)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'post_already_reported_by_you'
+            ]);
+        }
+
+
+        // the post hasn't been reported and not already moderated
+        $report = new PostReport();
+        $report->setPost($post)->setUser($user);
+
+        $entityManager->persist($report);
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'message' => 'your_report_saved'
+        ]);
+    }
+
+    /**
+     * @Route("/{postId}/moderate", name="moderate_post", requirements={"postId": "\d+"}, options={"expose": true})
+     * @Security("has_role('ROLE_ADMIN') or has_role('ROLE_MODERATOR')")
+     *
+     * @param $postId
+     * @return \Symfony\Component\HttpFoundation\JsonResponse
+     */
+    public function moderateAction($postId, Request $request)
+    {
+        $post = $this->getPostById($postId);
+
+        if (empty($post)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'post_not_exists'
+            ]);
+        }
+
+        $reason = $request->request->get('reason');
+
+        if (empty($reason)) {
+            return $this->json([
+                'success' => false,
+                'message' => 'reason_is_empty'
+            ]);
+        }
+
+        $user = $this->getUser();
+
+        $report = new PostReport();
+        $report->setPost($post)->setUser($user);
+
+        $review = new PostReportReview();
+        $review->setReport($report);
+        $review->setReviewer($user);
+        $review->setType(2);
+        $review->setReason($reason);
+
+        $entityManager = $this->entityManager;
+
+        $entityManager->persist($report);
+        $entityManager->persist($review);
+
+        $entityManager->flush();
+
+        return $this->json([
+            'success' => true,
+            'message' => 'your_report_saved'
+        ]);
+    }
+
+    protected function getPostById($postId) : Post
+    {
+        $post = $this->entityManager->getRepository(Post::class)->find($postId);
+
+        if (empty($post)) {
+            throw $this->createNotFoundException('post not exists');
+        }
+
+        return $post;
+    }
+
+    /**
+     * @Route("/preview", name="post_preview", options={"expose": true})
+     * @IsGranted("ROLE_USER")
+     */
+    public function previewAction(Request $request)
+    {
+        return $this->render('@YosimitsoWorkingForum/Post/preview.html.twig', [
+            'content' => $request->request->get('content')
+        ]);
     }
 
 }

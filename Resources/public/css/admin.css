@@ -1,0 +1,11 @@
+
+
+.wf-admin-moderate-btn[data-review-type="1"] {
+    color:green;
+    text-decoration:none;
+}
+
+.wf-admin-moderate-btn[data-review-type="2"] {
+    color:red;
+    text-decoration:none;
+}

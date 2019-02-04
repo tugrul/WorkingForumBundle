@@ -15,13 +15,15 @@ interface UserInterface
 
     public function getAvatarUrl();
 
-    public function getNbPost();
+    public function setAvatarUrl($url);
 
-    public function setAvatarUrl($avatar_url);
+    public function getEmail();
 
-    public function setNbPost($nbPost);
+    public function getRoles();
 
-    public function addNbPost($nb);
-    
-    public function getEmailAddress();
+    public function setRoles(array $roles);
+
+    public function addRole(string $role);
+
+    public function removeRole(string $role);
 }

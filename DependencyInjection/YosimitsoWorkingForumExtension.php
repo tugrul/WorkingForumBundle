@@ -4,6 +4,7 @@ namespace Yosimitso\WorkingForumBundle\DependencyInjection;
 
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\DependencyInjection\Loader;
 
@@ -15,8 +16,25 @@ use Symfony\Component\DependencyInjection\Loader;
  *
  * @package Yosimitso\WorkingForumBundle\DependencyInjection
  */
-class YosimitsoWorkingForumExtension extends Extension
+class YosimitsoWorkingForumExtension extends Extension implements PrependExtensionInterface
 {
+
+    protected static $requiredOptions = [
+        'thread_per_page', 'date_format', 'allow_anonymous_read', 'theme_color', 'lock_thread_older_than',
+        'vote', 'file_upload', 'post_flood_sec', 'site_title', 'thread_subscription'
+    ];
+
+    public function prepend(ContainerBuilder $container)
+    {
+        $loader = new Loader\YamlFileLoader(
+            $container,
+            new FileLocator(__DIR__ . '/../Resources/config')
+        );
+
+        $loader->load('framework.yml');
+        $loader->load('twig.yml');
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -25,70 +43,20 @@ class YosimitsoWorkingForumExtension extends Extension
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
 
-        if (!isset($config['thread_per_page'])) {
-            throw new \InvalidArgumentException(
-                'The "thread_per_page" option must be set in "yosimitso_working_forum"'
-            );
-        }
-
-        if (!isset($config['date_format'])) {
-            throw new \InvalidArgumentException(
-                'The "post_per_page" option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['allow_anonymous_read'])) {
-            throw new \InvalidArgumentException(
-                'The "allow_anonymous_read" option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['theme_color'])) {
-            throw new \InvalidArgumentException(
-                'The "theme_color" option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['lock_thread_older_than'])) {
-            throw new \InvalidArgumentException(
-                'The "lock_thread_older_than" option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['vote'])) {
-            throw new \InvalidArgumentException(
-                'The "vote" array option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['file_upload'])) {
-            throw new \InvalidArgumentException(
-                'The "file_upload" array option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['post_flood_sec'])) {
-            throw new \InvalidArgumentException(
-                'The "post_flood_sec" option must be set in "yosimitso_working_forum", please see README.MD'
-            ); 
-        }
-
-        if (!isset($config['site_title'])) {
-            throw new \InvalidArgumentException(
-                'The "site_title" option must be set in "yosimitso_working_forum", please see README.MD'
-            );
-        }
-
-        if (!isset($config['thread_subscription'])) {
-            throw new \InvalidArgumentException(
-                'The "thread_subscription" option must be set in "yosimitso_working_forum", please see README.MD'
-            );
+        foreach (self::$requiredOptions as $requiredOption) {
+            if (!isset($config[$requiredOption])) {
+                throw new \InvalidArgumentException(
+                    'The "' . $requiredOption . '" option must be set in ' .
+                    '"yosimitso_working_forum", please see README.MD'
+                );
+            }
         }
 
         $loader = new Loader\YamlFileLoader(
             $container,
             new FileLocator(__DIR__ . '/../Resources/config')
         );
+
         $loader->load('services.yml');
 
         $container->setParameter('yosimitso_working_forum.thread_per_page', $config['thread_per_page']);

@@ -1,0 +1,29 @@
+
+{% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
+
+{% block forum %}
+    {% set voteConfig = wf_parameter('vote') %}
+    {% set fileUploadConfig = wf_parameter('file_upload') %}
+
+    {% embed '@YosimitsoWorkingForum/Common/Embed/thread_block.html.twig' %}
+        {% block thread_header %}
+            <h1>{{ thread.label }}</h1>
+            <p>{{ thread.sublabel }}</p>
+        {% endblock %}
+
+        {% block thread_footer %}
+            <div class="justify-content-center">
+            {{ knp_pagination_render(postList, null, {}, {'align': 'center'}) }}
+            </div>
+        {% endblock %}
+    {% endembed %}
+
+
+    {% if thread.locked %}
+        <p>This thread is locked</p>
+    {% else %}
+        {% block forum_thread_editor %}
+            <p>You have to login write</p>
+        {% endblock %}
+    {% endif %}
+{% endblock %}

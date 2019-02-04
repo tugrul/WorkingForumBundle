@@ -4,7 +4,6 @@ namespace Yosimitso\WorkingForumBundle\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
-use Yosimitso\WorkingForumBundle\Util\Slugify;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -13,9 +12,9 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @package Yosimitso\WorkingForumBundle\Entity
  *
  * @ORM\Entity(repositoryClass="Yosimitso\WorkingForumBundle\Repository\SubforumRepository")
- * @ORM\Table(name="workingforum_subforum")
+ * @ORM\Table(name="workingforum_subforum", uniqueConstraints={@ORM\UniqueConstraint(name="subforum_slug", columns={"forum_id", "slug"})})
  */
-class Subforum
+class Subforum implements SlugableInterface
 {
     /**
      * @var integer
@@ -35,7 +34,7 @@ class Subforum
     /**
      * @var Forum
      *
-     * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\Forum", inversedBy="subForum")
+     * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\Forum", inversedBy="subforums")
      * @ORM\JoinColumn(name="forum_id", referencedColumnName="id")
      */
     private $forum;
@@ -49,13 +48,6 @@ class Subforum
     private $name;
 
     /**
-     * @var integer
-     *
-     * @ORM\Column(name="nb_thread", type="integer", nullable=true)
-     */
-    private $nbThread;
-
-    /**
      * @var string
      *
      * @ORM\Column(name="slug", type="string", length=255)
@@ -63,27 +55,6 @@ class Subforum
      */
     private $slug;
 
-    /**
-     * @var integer
-     *
-     * @ORM\Column(name="nb_post", type="integer", nullable=true)
-     */
-    private $nbPost;
-
-    /**
-     * @var \Datetime
-     * @ORM\Column(name="last_reply_date", type="datetime", nullable=true)
-     *
-     */
-    private $lastReplyDate;
-
-    /**
-     * @var UserInterface
-     *
-     * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\User")
-     * @ORM\JoinColumn(name="lastReplyUser", referencedColumnName="id", nullable=true)
-     */
-    private $lastReplyUser;
     /**
      * @var ArrayCollection
      *
@@ -93,13 +64,21 @@ class Subforum
      *     cascade={"remove"}
      * )
      */
-    private $thread;
+    private $threads;
 
-    /** @var ArrayCollection
-     * @ORM\Column(name="allowed_roles",type="array", nullable=true)
+    /** @var array
+     * @ORM\Column(name="allowed_roles", type="json")
      */
 
-    private $allowedRoles;
+    private $allowedRoles = [];
+
+    /**
+     * Subforum constructor.
+     */
+    public function __construct()
+    {
+        $this->thread = new ArrayCollection();
+    }
 
     /**
      * @return integer
@@ -107,11 +86,6 @@ class Subforum
     public function getId()
     {
         return $this->id;
-    }
-
-    public function __construct()
-    {
-        $this->allowedRoles = new ArrayCollection;
     }
 
     /**
@@ -147,7 +121,7 @@ class Subforum
      *
      * @return Subforum
      */
-    public function setForum(Forum $forum)
+    public function setForum(?Forum $forum)
     {
         $this->forum = $forum;
 
@@ -169,42 +143,13 @@ class Subforum
     {
         $this->name = $name;
 
-        if (empty($this->slug)) {
-            $this->slug = Slugify::convert($this->name);
-        }
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getNbThread()
-    {
-        return $this->nbThread;
-    }
-
-    /**
-     * @param mixed $nbThread
-     *
-     * @return Subforum
-     */
-    public function setNbThread($nbThread)
-    {
-        $this->nbThread = $nbThread;
-
-        return $this;
-    }
-
-    public function addNbThread($nb)
-    {
-        $this->nbThread += $nb;
-
         return $this;
     }
 
     /**
      * @return string
      */
-    public function getSlug()
+    public function getSlug(): ?string
     {
         return $this->slug;
     }
@@ -214,84 +159,22 @@ class Subforum
      *
      * @return Subforum
      */
-    public function setSlug($slug)
+    public function setSlug(?string $slug)
     {
         $this->slug = $slug;
 
         return $this;
     }
 
-    /**
-     * @return mixed
-     */
-    public function getNbPost()
+    public function getSlugProvider(): string
     {
-        return $this->nbPost;
-    }
-
-    /**
-     * @param mixed $nbPost
-     *
-     * @return Subforum
-     */
-    public function setNbPost($nbPost)
-    {
-        $this->nbPost = $nbPost;
-
-        return $this;
-    }
-
-    public function addNbPost($nb)
-    {
-        $this->nbPost += $nb;
-
-        return $this;
-    }
-
-    /**
-     * @return mixed
-     */
-    public function getLastReplyDate()
-    {
-        return $this->lastReplyDate;
-    }
-
-    /**
-     * @param mixed $lastReplyDate
-     *
-     * @return Subforum
-     */
-    public function setLastReplyDate($lastReplyDate)
-    {
-        $this->lastReplyDate = $lastReplyDate;
-
-        return $this;
-    }
-
-    /**
-     * @return UserInterface
-     */
-    public function getLastReplyUser()
-    {
-        return $this->lastReplyUser;
-    }
-
-    /**
-     * @param UserInterface $lastReplyUser
-     *
-     * @return Subforum
-     */
-    public function setLastReplyUser(UserInterface $lastReplyUser)
-    {
-        $this->lastReplyUser = $lastReplyUser;
-
-        return $this;
+        return $this->getName();
     }
 
     /**
      * @return ArrayCollection
      */
-    public function getThread()
+    public function getThreads()
     {
         return $this->thread;
     }
@@ -301,7 +184,7 @@ class Subforum
      *
      * @return Subforum
      */
-    public function setThread(ArrayCollection $thread)
+    public function setThreads(ArrayCollection $threads)
     {
         $this->thread = $thread;
 
@@ -321,11 +204,17 @@ class Subforum
     }
 
     /**
-     * @return ArrayCollection
+     * @return array
      */
     public function getAllowedRoles()
     {
-        return $this->allowedRoles;
+        $roles = $this->allowedRoles;
+
+        if (empty($roles)) {
+            $roles[] = 'ROLE_USER';
+        }
+
+        return $roles;
     }
 
     /**
@@ -340,45 +229,6 @@ class Subforum
         return $this;
     }
 
-    /**
-     * @return bool
-     */
-    public function hasAllowedRoles()
-    {
-        // Check if there is one or more allowed role and is not an empty one
-        if (count($this->allowedRoles) >= 1 && !empty($this->allowedRoles[0])) {
-            return true;
-        }
 
-        return false;
-    }
 
-    /**
-     * @param UserInterface $user
-     * @return bool
-     * Update statistic on new post
-     */
-    public function newPost(UserInterface $user)
-    {
-        $this->setNbPost($this->getNbPost() + 1)
-            ->setLastReplyDate(new \DateTime)
-            ->setLastReplyUser($user);
-
-        return true;
-    }
-
-    /**
-     * @param UserInterface $user
-     * @return bool
-     * Update statistic on new post
-     */
-    public function newThread(UserInterface $user)
-    {
-        $this->setNbPost($this->getNbPost() + 1)
-            ->setNbThread($this->getNbThread() + 1)
-            ->setLastReplyDate(new \DateTime)
-            ->setLastReplyUser($user);
-
-        return true;
-    }
 }

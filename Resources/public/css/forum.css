@@ -949,3 +949,24 @@ code {
     clear: both;
 }
 
+/* move thread form */
+
+#wf_move_thread_cancel {
+    display:none;
+}
+
+.wf_move_thread_container .wf_move_thread_form {
+    display:none;
+}
+
+.wf_move_thread_container.active .wf_move_thread_form {
+    display: block;
+}
+
+.wf_move_thread_container.active #wf_move_thread_button {
+    display:none;
+}
+
+.wf_move_thread_container.active #wf_move_thread_cancel {
+    display:inline;
+}

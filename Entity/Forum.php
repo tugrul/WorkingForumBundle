@@ -4,7 +4,6 @@ namespace Yosimitso\WorkingForumBundle\Entity;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Mapping as ORM;
-use Yosimitso\WorkingForumBundle\Util\Slugify;
 use Symfony\Component\Validator\Constraints as Assert;
 
 /**
@@ -15,7 +14,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  * @ORM\Table(name="workingforum_forum")
  * @ORM\Entity()
  */
-class Forum
+class Forum implements SlugableInterface
 {
     /**
      * @var integer
@@ -37,9 +36,15 @@ class Forum
     /**
      * @var string
      *
-     * @ORM\Column(name="slug", type="string", length=255)
+     * @ORM\Column(name="slug", type="string", length=255, unique=true)
      */
     private $slug;
+
+    /**
+     * @var string
+     * @ORM\Column(name="description", type="string", length=255, nullable=true)
+     */
+    private $description;
 
     /**
      * @var ArrayCollection
@@ -47,11 +52,19 @@ class Forum
      * @ORM\OneToMany(
      *     targetEntity="Yosimitso\WorkingForumBundle\Entity\Subforum",
      *     mappedBy="forum",
-     *     cascade={"persist","remove"},
+     *     cascade={"persist", "remove"},
      *     orphanRemoval=true
      * )
      */
-    private $subForum;
+    private $subforums;
+
+    /**
+     * Forum constructor.
+     */
+    public function __construct()
+    {
+        $this->subforums = new ArrayCollection();
+    }
 
     /**
      * @return integer
@@ -82,46 +95,13 @@ class Forum
     }
 
     /**
-     * @return ArrayCollection
-     */
-    public function getSubforum()
-    {
-        return $this->subForum;
-    }
-
-    /**
-     * @param Subforum $subforum
-     *
-     * @return Forum
-     */
-    public function addSubForum(Subforum $subforum)
-    {
-        $this->subForum[] = $subforum;
-
-        return $this;
-    }
-
-    /**
-     * @param Subforum $subForum
-     *
-     * @return Forum
-     */
-    public function removeSubForum(Subforum $subForum)
-    {
-        $this->subForum->remove($subForum);
-        $subForum->setForum(null);
-
-        return $this;
-    }
-
-    /**
      * Set slug
      *
      * @param string $slug
      *
      * @return Forum
      */
-    public function setSlug($slug)
+    public function setSlug(?string $slug)
     {
         $this->slug = $slug;
 
@@ -133,21 +113,77 @@ class Forum
      *
      * @return string
      */
-    public function getSlug()
+    public function getSlug(): ?string
     {
         return $this->slug;
+    }
+
+    public function getSlugProvider(): string
+    {
+        return $this->getName();
     }
 
     /**
-     * @param $name
-     *
-     * @return mixed|string
+     * @return string
      */
-    public function generateSlug($name)
+    public function getDescription()
     {
-        $this->slug = Slugify::convert($name);
-
-        return $this->slug;
+        return $this->description;
     }
+
+    /**
+     * @param string $description
+     *
+     * @return Subforum
+     */
+    public function setDescription($description)
+    {
+        $this->description = $description;
+
+        return $this;
+    }
+
+    /**
+     * @return ArrayCollection
+     */
+    public function getSubforums()
+    {
+        return $this->subforums;
+    }
+
+    /**
+     * @param Subforum $subforum
+     *
+     * @return Forum
+     */
+    public function addSubforum(Subforum $subforum)
+    {
+        if (!$this->subforums->contains($subforum)) {
+            $this->subforums[] = $subforum;
+            $subforum->setForum($this);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param Subforum $subforum
+     *
+     * @return Forum
+     */
+    public function removeSubforum(Subforum $subforum)
+    {
+        if ($this->subforums->contains($subforum)) {
+            $this->subforums->removeElement($subforum);
+            if ($subforum->getForum() === $this) {
+                $subforum->setForum(null);
+            }
+        }
+
+        return $this;
+    }
+
+
+
 
 }

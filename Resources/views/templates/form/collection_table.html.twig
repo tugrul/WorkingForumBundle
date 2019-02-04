@@ -1,0 +1,37 @@
+
+{% extends 'bootstrap_4_layout.html.twig' %}
+
+{% block form_widget_compound %}
+    <table class="table table-bordered table-list-form" data-prototype="{{ block('table_list_form_row') | escape('html_attr') }}">
+        <thead>
+        <tr>
+            {% set header = form | first %}
+            {% for child in header %}
+                <th>{{ form_label(child) }}</th>
+            {% endfor %}
+            <th style="width:56px;"><button type="button" class="btn btn-primary btn-block btn-sm btn-add-item"><span class="fas fa-plus"></span></button></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for row in form %}
+            <tr>
+                {% for col in row %}
+                    <td>{{ form_widget(col) }}</td>
+                {% endfor %}
+                <td><button type="button" data-confirm-delete="true" class="btn btn-danger btn-block btn-sm btn-remove-item"><span class="fas fa-times"></span></button></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
+
+{% block table_list_form_row %}
+    {% if prototype is defined %}
+        <tr>
+            {% for col in prototype %}
+                <td>{{ form_widget(col) }}</td>
+            {% endfor %}
+            <td><button type="button" data-confirm-delete="false" class="btn btn-danger btn-block btn-sm btn-remove-item"><span class="fas fa-times"></span></button></td>
+        </tr>
+    {% endif %}
+{% endblock %}

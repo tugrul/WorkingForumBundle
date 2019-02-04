@@ -1,57 +1,62 @@
-{% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
-{% block forum %}
-    {% include '@YosimitsoWorkingForum/Common/header.html.twig' %}
-    {% trans_default_domain 'YosimitsoWorkingForumBundle' %}
-    <div id="wf_forum_content">
-        {% include '@YosimitsoWorkingForum/Common/flashmsg.html.twig' %}
-        <h1>{{ 'admin.admin_workingforum' | trans }}</h1>
-        <div id="wf_forum_admin">
-            <p><a class="wf_button" href="{{ path('workingforum_forum') }}">
-                    &larr; {{ 'admin.back_to_forum' |trans }}
-                </a></p>
 
-            {% if (is_granted("ROLE_SUPER_ADMIN") or is_granted("ROLE_ADMIN")) %}
-            <div class="wf_forum_block_admin">
-                <div class="wf_forum_block_title">{{ 'admin.manage_forum' | trans }}</div>
-                <div class="wf_forum_content">
-                    <p><a href="{{ path('workingforum_admin_forum_rules') }}">{{ 'admin.rules.edit' | trans }}</a></p>
-                    <ul style="list-style: inside decimal;">
-                        {% for forum in list_forum %}
-                            <li>
-                                <a href="{{ path('workingforum_admin_forum_edit', { 'id' : forum.id }) }}">{{ forum.name }}</a>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                    <a class="wf_button wf_button-center" href="{{ path('workingforum_admin_forum_add') }}"><span
-                                class="wf_add-plus"></span>{{ 'admin.add' | trans }}</a>
+{% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
+
+{% trans_default_domain 'YosimitsoWorkingForumBundle' %}
+
+{% block forum_header %}
+    <a class="btn btn-secondary" href="{{ path('workingforum_index') }}">{{ 'admin.back_to_forum' |trans }}</a>
+{% endblock %}
+
+{% block forum %}
+
+
+        <h1>{{ 'admin.admin_workingforum' | trans }}</h1>
+        <div class="card-deck">
+
+            {% if (wf_is_admin()) %}
+            <div class="card">
+                <div class="card-header">{{ 'admin.manage_forum' | trans }}</div>
+                <div class="card-body">
+                    {% if (list_forum | length > 0) %}
+                    <ol>
+                    {% for forum in list_forum %}
+                        <li><a href="{{ path('workingforum_admin_forum_edit', { 'id' : forum.id }) }}">{{ forum.name }}</a></li>
+                    {% endfor %}
+                    </ol>
+                    {% else %}
+                        <p>{{ 'admin.no_rules' | trans }}</p>
+                    {% endif %}
+
+                </div>
+                <div class="card-footer">
+                    <a class="btn btn-primary" href="{{ path('workingforum_admin_forum_add') }}">
+                        <span class="fas fa-plus"></span> {{ 'admin.add' | trans }}</a>
                 </div>
             </div>
 
-            <div class="wf_forum_block_admin">
-                <div class="wf_forum_block_title">{{ 'admin.manage_settings' | trans }}</div>
-                <div class="wf_forum_content">
-                    <h2>{{ 'setting.intro' | trans  }}</h2>
-                    <table>
-                        {% for setting in settings_render %}
-                        <tr>
-                            {% if setting.group is defined and setting.group %}
-                                <td class="wf_setting_group" colspan="2">{{ setting.label }}</td>
-                            {% else %}
-                                <td>{{ setting.text | raw }}</td>
-                                <td>{{ setting.input | raw }}</td>
-                            {% endif %}
-                        </tr>
-
-                        {% endfor %}
-                    </table>
-
+            <div class="card">
+                <div class="card-header">{{ 'admin.manage_forum_rules' | trans }}</div>
+                <div class="card-body">
+                    {% if (rulesList | length > 0) %}
+                    <ol>
+                    {% for rule in rulesList %}
+                        <li><a href="{{ path('workingforum_admin_edit_forum_rules', { 'id' : rule.id }) }}">{{ rule.lang }}</a></li>
+                    {% endfor %}
+                    </ol>
+                    {% else %}
+                        <p>{{ 'admin.no_rules' | trans }}</p>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a class="btn btn-primary" href="{{ path('workingforum_admin_new_forum_rules') }}">
+                        <span class="fas fa-plus"></span> {{ 'admin.rules_add' | trans }}</a>
                 </div>
             </div>
             {% endif %}
 
-            <div class="wf_forum_block_admin">
-                <div class="wf_forum_block_title">{{ 'admin.manage_users' | trans }}</div>
-                <div class="wf_forum_content">
+            <div class="card">
+                <div class="card-header">{{ 'admin.manage_users' | trans }}</div>
+                <div class="card-body">
                     <ul style="list-style: inside decimal;">
                         <li><a href="{{ path('workingforum_admin_user') }}">{{ 'admin.users_list' | trans }}</a></li>
                         <li>
@@ -64,7 +69,7 @@
                     </ul>
                 </div>
             </div>
-            <div class="wf_clear"></div>
+
         </div>
-    </div>
+
 {% endblock %}

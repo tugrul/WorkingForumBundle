@@ -1,19 +1,26 @@
 {% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
-{% block forum %}
-    {% include '@YosimitsoWorkingForum/Common/header.html.twig' %}
+
+
 {% trans_default_domain 'YosimitsoWorkingForumBundle' %}
- <div id="wf_forum_content">
-     {% include '@YosimitsoWorkingForum/Common/breadcrumb.html.twig' with {'extraPath': [('forum.search_forum' | trans)]} only %}
-    <div id="wf_search">
-         {{ form_start(form) }}
-        <p>{{ form_label(form.keywords)}}</p>
-        <p>{{ form_widget(form.keywords) }}</p>
-        <p>{{ form_label(form.forum)}}</p>
-        <p>{{ form_widget(form.forum) }}</p>
-        <p>{{ form_widget(form.submit) }}</p>
-       
-        {{ form_rest(form) }}
-        {{ form_end(form) }}
-   </div>
- </div>
+
+{% block forum %}
+
+    <h1>Search Forum</h1>
+
+    {{ form_start(form) }}
+
+    <div class="form-row">
+        <div class="col-md">
+            {{ form_row(form.forum) }}
+        </div>
+        <div class="col-md">
+            {{ form_row(form.keywords) }}
+            {{ form_row(form.submit) }}
+        </div>
+    </div>
+
+    {{ form_rest(form) }}
+
+    {{ form_end(form) }}
+
 {% endblock %}

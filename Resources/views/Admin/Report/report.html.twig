@@ -1,19 +1,33 @@
-{% extends '@YosimitsoWorkingForum/Common/base.html.twig' %}
-{% block forum %}
-    {% include '@YosimitsoWorkingForum/Common/header.html.twig' %}
-    {% trans_default_domain 'YosimitsoWorkingForumBundle' %}
-    <script src="{{ asset('bundles/yosimitsoworkingforum/js/jquery.min.js') }}"></script>
-    {% include '@YosimitsoWorkingForum/Admin/Report/report.js.twig' %}
+{% extends '@YosimitsoWorkingForum/Admin/Report/report_history.html.twig' %}
 
-    <div id="wf_forum_content">
-        {%  include '@YosimitsoWorkingForum/Admin/header.html.twig' with {'backToAdmin': true, 'adminSubtitle': 'admin.menu.report'} %}
-        <div id="wf_forum_admin">
-            <p>
-                <a class="wf_button" href="{{ path('workingforum_admin_report_history') }}">
-                    {{ 'admin.report.history' |trans }}
-                </a>
-            </p>
-            {% include '@YosimitsoWorkingForum/Admin/Report/report_content.html.twig' with {'postReportList': postReportList } %}
-        </div>
-    </div>
+{% block admin_subtitle %}
+    <h2>{{ 'admin.menu.report' | trans }}</h2>
+{% endblock %}
+
+{% block forum_scripts %}
+    {{ parent() }}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="{{ asset('js/admin.js', 'forum') }}"></script>
+
+{% endblock %}
+
+{% block forum_header %}
+    <p>
+        <a class="btn btn-secondary" href="{{ path('workingforum_admin_report_history') }}">
+            {{ 'admin.report.history' | trans }}
+        </a>
+    </p>
+{% endblock %}
+
+{% block admin_report_action %}
+    <p><a href="{{ path('workingforum_admin_report_review', {'id': report.id}) }}"
+          class="wf-admin-moderate-btn"
+          data-review-type="1">&#10004; {{ 'admin.report.good' | trans | capitalize}}</a></p>
+    <p><a href="{{ path('workingforum_admin_report_review', {'id': report.id}) }}"
+          class="wf-admin-moderate-btn"
+          data-review-type="2" data-ban-user="0">X {{ 'admin.report.moderate' | trans | capitalize }}</a></p>
+    <p><a href="{{ path('workingforum_admin_report_review', {'id': report.id}) }}"
+          class="wf-admin-moderate-btn"
+          data-review-type="2" data-ban-user="1">XXX {{ 'admin.report.moderateAndBan' | trans | capitalize }}</a></p>
 {% endblock %}

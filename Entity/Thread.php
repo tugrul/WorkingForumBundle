@@ -11,8 +11,15 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * @ORM\Table(name="workingforum_thread")
  * @ORM\Entity(repositoryClass="Yosimitso\WorkingForumBundle\Repository\ThreadRepository")
+ * @ORM\HasLifecycleCallbacks()
+ * @ORM\NamedNativeQueries({
+ * @ORM\NamedNativeQuery(
+ *     name="thread_list_updated_by_subforum",
+ *     query="select * from workingforum_thread WFT inner join (select thread_id, max(id) as last_post_id from workingforum_post group by thread_id) LPI on WFT.id = LPI.thread_id inner join workingforum_post WFP on WFP.id = LPI.last_post_id where WFT.subforum_id = :subforumId",
+ *     resultSetMapping="thread_list_updated_mapping"
+ * )})
  */
-class Thread
+class Thread implements SlugableInterface
 {
     /**
      * @var integer
@@ -40,34 +47,11 @@ class Thread
     private $author;
 
     /**
-     * @var \DateTime
+     * @var \DateTimeInterface
      *
-     * @ORM\Column(name="cdate", type="datetime")
-     * @Assert\NotBlank()
+     * @ORM\Column(name="create_date", type="datetime")
      */
-    private $cdate;
-
-    /**
-     * @var integer
-     *
-     * @ORM\Column(name="nbReplies", type="integer")
-     */
-    private $nbReplies;
-
-    /**
-     * @var \DateTime
-     *
-     * @ORM\Column(name="lastReplyDate", type="datetime")
-     */
-    private $lastReplyDate;
-
-    /**
-     * @var UserInterface
-     *
-     * @ORM\ManyToOne(targetEntity="Yosimitso\WorkingForumBundle\Entity\User")
-     * @ORM\JoinColumn(name="lastReplyUser", referencedColumnName="id", nullable=true)
-     */
-    private $lastReplyUser;
+    private $createDate;
 
     /**
      * @var boolean
@@ -115,13 +99,13 @@ class Thread
      *
      * @var ArrayCollection
      */
-    private $post;
+    private $posts;
 
     /**
      * @var boolean
      * @ORM\Column(name="pin", type="boolean", nullable=true)
      */
-    private $pin;
+    private $pin = false;
 
     /**
      * Get id
@@ -133,21 +117,9 @@ class Thread
         return $this->id;
     }
 
-    public function __construct(UserInterface $user, Subforum $subforum, Post $post = null)
+    public function __construct()
     {
-        $this->post = new ArrayCollection;
-        $this->setLastReplyDate(new \DateTime)
-            ->setCdate(new \DateTime)
-            ->setNbReplies(1) // A THREAD MUST HAVE AT LEAST 1 POST
-            ->setLastReplyUser($user)
-            ->setAuthor($user)
-            ->setSubforum($subforum);
-
-        if (!is_null($post)) {
-            $this->addPost($post);
-        }
-
-        $this->pin = false;
+        $this->posts = new ArrayCollection();
     }
 
     /**
@@ -171,95 +143,23 @@ class Thread
     }
 
     /**
-     * @param \DateTime $cdate
+     * @param \DateTimeInterface $createDate
      *
      * @return Thread
      */
-    public function setCdate($cdate)
+    public function setCreateDate($createDate)
     {
-        $this->cdate = $cdate;
+        $this->createDate = $createDate;
 
         return $this;
     }
 
     /**
-     * @return \DateTime
+     * @return \DateTimeInterface
      */
-    public function getCdate()
+    public function getCreateDate()
     {
-        return $this->cdate;
-    }
-
-    /**
-     * @param integer $nbReplies
-     *
-     * @return Thread
-     */
-    public function setNbReplies($nbReplies)
-    {
-        $this->nbReplies = $nbReplies;
-
-        return $this;
-    }
-
-    /**
-     * @return integer
-     */
-    public function getNbReplies()
-    {
-        return $this->nbReplies;
-    }
-
-    /**
-     * @param $nb
-     *
-     * @return $this
-     */
-    public function addNbReplies($nb)
-    {
-        $this->nbReplies += $nb;
-
-        return $this;
-    }
-
-    /**
-     * @param \DateTime $lastReplyDate
-     *
-     * @return Thread
-     */
-    public function setLastReplyDate($lastReplyDate)
-    {
-        $this->lastReplyDate = $lastReplyDate;
-
-        return $this;
-    }
-
-    /**
-     * @return \DateTime
-     */
-    public function getLastReplyDate()
-    {
-        return $this->lastReplyDate;
-    }
-
-    /**
-     * @return UserInterface
-     */
-    public function getLastReplyUser()
-    {
-        return $this->lastReplyUser;
-    }
-
-    /**
-     * @param UserInterface $lastReplyUser
-     *
-     * @return Thread
-     */
-    public function setLastReplyUser(UserInterface $lastReplyUser)
-    {
-        $this->lastReplyUser = $lastReplyUser;
-
-        return $this;
+        return $this->createDate;
     }
 
     /**
@@ -367,7 +267,7 @@ class Thread
      *
      * @return Thread
      */
-    public function setSlug($slug)
+    public function setSlug(?string $slug)
     {
         $this->slug = $slug;
 
@@ -377,9 +277,14 @@ class Thread
     /**
      * @return string
      */
-    public function getSlug()
+    public function getSlug(): ?string
     {
         return $this->slug;
+    }
+
+    public function getSlugProvider(): string
+    {
+        return $this->getLabel();
     }
 
     /**
@@ -387,9 +292,9 @@ class Thread
      *
      * @return Thread
      */
-    public function setPost($post)
+    public function setPosts($posts)
     {
-        $this->post = $post;
+        $this->posts = $posts;
 
         return $this;
     }
@@ -397,9 +302,9 @@ class Thread
     /**
      * @return ArrayCollection
      */
-    public function getPost()
+    public function getPosts()
     {
-        return $this->post;
+        return $this->posts;
     }
 
     /**
@@ -409,7 +314,7 @@ class Thread
      */
     public function addPost(Post $post)
     {
-        $this->post->add($post);
+        $this->posts->add($post);
 
         return $this;
     }
@@ -435,16 +340,10 @@ class Thread
     }
 
     /**
-     * @param \Yosimitso\WorkingForumBundle\Entity\UserInterface $user
-     * @return bool
-     * Update statistic on new post
+     * @ORM\PrePersist
      */
-    public function addReply(UserInterface $user) {
-        $this->addNbReplies(1)
-            ->setLastReplyDate(new \DateTime)
-            ->setLastReplyUser($user);
-
-        return true;
+    public function prePersistTimestamps()
+    {
+        $this->setCreateDate(new \DateTimeImmutable());
     }
-
 }

@@ -1,3 +1,53 @@
-{% block forum %}
-{% endblock %}    
-    
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
+          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css"
+          integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
+
+    <link rel="stylesheet" media="all" href="{{ asset('css/new-forum.css', 'forum') }}" />
+
+    {% block forum_styles %}{% endblock %}
+</head>
+<body>
+
+
+
+<div class="container">
+
+    {{ wo_render_breadcrumbs({'listClass': 'breadcrumb my-3'}) }}
+
+    <div class="btn-block my-3">
+        {% block forum_header %}
+            {% if wf_is_manager() %}
+                <a class="btn btn-secondary" href="{{ path('workingforum_admin_index') }}">{{ 'forum.admin_access' | trans }}</a>
+            {% endif %}
+            <a class="btn btn-secondary" href="{{ path('workingforum_search') }}">{{ 'forum.search_forum' | trans }}</a>
+            <a class="btn btn-secondary" href="{{ path('workingforum_rules') }}">{{ 'forum.forum_rules' |trans }}</a>
+        {% endblock %}
+    </div>
+
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ label }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endfor %}
+
+    {% block forum %}
+    {% endblock %}
+
+    {% block forum_footer %}
+    {% endblock %}
+</div>
+
+{% block forum_scripts %}
+{% endblock %}
+</body>
+</html>

@@ -2,7 +2,11 @@
 
 namespace Yosimitso\WorkingForumBundle\Repository;
 
+use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\NativeQuery;
+
+use Yosimitso\WorkingForumBundle\Entity\{Forum,Subforum,Post,Thread};
 
 /**
  * Class ThreadRepository
@@ -19,7 +23,9 @@ class ThreadRepository extends EntityRepository
      */
     public function getThread($start = 0, $limit = 10)
     {
-        $queryBuilder = $this->_em->createQueryBuilder();
+
+        $queryBuilder = $this->getEntityManager()
+            ->createQueryBuilder();
         $query = $queryBuilder
             ->select('a')
             ->addSelect('b')
@@ -27,53 +33,45 @@ class ThreadRepository extends EntityRepository
             ->join('YosimitsoWorkingForumBundle:Post', 'b', 'WITH', 'a.id = b.thread')
             ->orderBy('a.note', 'desc')
             ->setMaxResults($limit)
-            ->getQuery()
-        ;
+            ->getQuery();
 
         return $query->getScalarResult();
     }
 
     /**
-     * @param string  $keywords
-     * @param integer $start
-     * @param integer $limit
-     * @param string  $delimiter
-     *
-     * @return Thread[]
+     * @param Subforum $subforum
+     * @return integer
      */
-    public function search($keywords, $start = 0, $limit = 100, array $whereSubforum)
+    public function getCountBySubforum(Subforum $subforum)
     {
-        if (empty($whereSubforum)) {
-            return null;
-        }
-        $keywords = explode(' ', $keywords);
-        $where = '';
+        $query = new QueryBuilder($this->getEntityManager()
+            ->getConnection());
 
-        foreach ($keywords as $word)
-        {
-            $where .= "(a.label LIKE '%" . $word . "%' OR a.subLabel LIKE '%" . $word . "%' OR b.content LIKE '%" . $word . "%') OR";
-        }
+        $result = $query->select('COUNT(*) AS `thread_count`')
+            ->from('`workingforum_thread`')
+            ->where('`subforum_id` = :subforumId')
+            ->setParameter(':subforumId', $subforum->getId())
+            ->setMaxResults(1)
+            ->execute()->fetchColumn(0);
 
-        $where = rtrim($where, ' OR');
-
-        $queryBuilder = $this->_em->createQueryBuilder();
-        $queryBuilder
-            ->select('a')
-            ->from($this->_entityName, 'a')
-            ->join('YosimitsoWorkingForumBundle:Post', 'b', 'WITH', 'a.id = b.thread')
-            ->join('YosimitsoWorkingForumBundle:Subforum','c','WITH','a.subforum = c.id')
-            ->where($where)
-            ->andWhere('b.moderateReason IS NULL')
-            ;
-
-        if (!empty($whereSubforum))
-        {
-            $queryBuilder->andWhere('c.id IN ('.implode(',',$whereSubforum).')');
-        }
-            $queryBuilder->setMaxResults($limit)
-                    
-        ;
-        $query = $queryBuilder;
-        return $query->getQuery()->getResult();
+        return intval($result);
     }
+
+    public function getCountByForum(Forum $forum)
+    {
+        $query = new QueryBuilder($this->getEntityManager()
+            ->getConnection());
+
+        $result = $query->select('COUNT(*) AS `thread_count`')
+            ->from('`workingforum_thread`', 'WFT')
+            ->innerJoin('WFT', 'workingforum_subforum', 'WFS', 'WFT.subforum_id = WFS.id')
+            ->where('WFS.forum_id = :forumId')
+            ->setParameter(':forumId', $forum->getId())
+            ->setMaxResults(1)
+            ->execute()->fetchColumn(0);
+
+        return intval($result);
+    }
+
+
 }

@@ -1,26 +1,28 @@
 {
     "name": "yosimitso/workingforumbundle",
-    "description": "A full Symfony system",
+    "description": "Symfony 3 / 4 Forum Bundle",
     "type": "symfony-bundle",
     "require": {
         "knplabs/knp-paginator-bundle": "~2.7.2",
         "knplabs/knp-markdown-bundle": "^1.7.0",
 	    "symfony/framework-bundle": ">=2.7",
         "sensio/framework-extra-bundle": ">=3.0",
-        "swiftmailer/swiftmailer": ">=5.4.9"
+        "whiteoctober/breadcrumbs-bundle": "^1.4",
+        "javiereguiluz/easyslugger": "^1.0",
+        "vich/uploader-bundle": "^1.8"
+    },
+    "suggest": {
+        "swiftmailer/swiftmailer": "To use in optional subscription mechanism"
     },
     "license": "MIT",
     "authors": [
-        {
-            "name": "Yosimitso",
-            "email": "contactportfolio@charlymartins.fr"
-        }
+        {"name": "Tuğrul Topuz", "email": "tugrultopuz@gmail.com"},
+        {"name": "Yosimitso", "email": "contactportfolio@charlymartins.fr"}
     ],
     "minimum-stability": "dev",
-	 "autoload": {
+    "autoload": {
 		"psr-4": {
             "Yosimitso\\WorkingForumBundle\\": ""
-
         }
-		}
+    }
 }

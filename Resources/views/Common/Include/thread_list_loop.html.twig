@@ -1,0 +1,38 @@
+{% for item in postList %}
+    {% embed '@YosimitsoWorkingForum/Common/Embed/thread_list_row.html.twig' %}
+
+        {% block thread_flags %}
+            {% if thread.locked %}
+                <span class="fas fa-lock"></span>
+            {% endif %}
+
+            {% if thread.pin %}
+                <span class="fas fa-thumbtack"></span>
+            {% endif %}
+
+            {% if thread.resolved %}
+                <span class="fas fa-check"></span>
+            {% endif %}
+        {% endblock %}
+
+        {% block thread_label %}
+            <a href="{{ threadPath }}">{{ thread.label }}</a>
+        {% endblock %}
+
+        {% block thread_latest_page %}
+            <a href="{{ threadPath ~ '?page=' ~ ((item.postCount / postPerPage) | round(0, 'ceil')) ~
+            '#post-' ~ post.id }}">&rarr; {{ 'pagination.latestPage' | trans }}</a>
+        {% endblock %}
+
+        {% block thread_author %}
+            <img class="forum-thread-author-avatar" src="{{ user_avatar(post.user) }}" alt="{{ thread.author.username }}" />
+            <span class="forum-thread-author-username">{{ thread.author.username }}</span>
+        {% endblock %}
+
+        {% block thread_last_reply %}
+            <div class="last-reply-date">{{'forum.last_reply_date' | trans }}</div>
+            <div class="last-reply-author">{{ post.createDate | date}}
+                {{ 'forum.by' | trans }} {{ post.user.username}}</div>
+        {% endblock %}
+    {% endembed %}
+{% endfor %}

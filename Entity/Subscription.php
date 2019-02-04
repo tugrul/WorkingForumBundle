@@ -11,8 +11,8 @@ use Symfony\Component\Validator\Constraints as Assert;
  *
  * @package Yosimitso\WorkingForumBundle\Entity
  *
- * @ORM\Table(name="workingforum_subscription")
- * @ORM\Entity()
+ * @ORM\Table(name="workingforum_subscription", uniqueConstraints={@ORM\UniqueConstraint(name="subscription_user", columns={"thread_id", "user_id"})})
+ * @ORM\Entity(repositoryClass="Yosimitso\WorkingForumBundle\Repository\SubscriptionRepository")
  */
 class Subscription
 {
@@ -39,12 +39,6 @@ class Subscription
      * @ORM\JoinColumn(name="user_id", referencedColumnName="id", nullable=true)
      */
     private $user;
-
-    public function __construct(Thread $thread, UserInterface $user)
-    {
-        $this->setThread($thread);
-        $this->setUser($user);
-    }
 
     /**
      * @return int

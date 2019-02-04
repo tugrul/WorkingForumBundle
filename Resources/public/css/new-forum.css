@@ -1,0 +1,92 @@
+
+.wf-index-block .subforum-last-reply {
+    width:200px;
+}
+
+.wf-index-block .subforum-stats {
+    width:200px;
+}
+
+.wf-index-block .wf-index-block-header {
+    padding:10px;
+    overflow:hidden;
+    background-color:#eee;
+    border:1px solid #dee2e6;
+    border-bottom:0;
+}
+
+.wf-index-block .wf-index-block-header > p {
+    margin-bottom:0;
+}
+
+.forum-thread-list .forum-thread-col-author .forum-thread-author-avatar {
+    width:50px;
+    height:50px;
+}
+
+.wf-thread .wf-post .wf-post-owner {
+    background-color:#e9ecef;
+}
+
+.wf-thread .wf-post .wf-post-owner .wf-user-avatar {
+    display:block;
+    width:100%;
+    margin-bottom:10px;
+}
+
+
+.markdown-editor-emoji-list {
+    display:none;
+    padding:10px;
+    border:1px solid #d8d8d8;
+    border-bottom:0;
+}
+
+.markdown-editor-emoji-list ul {
+    list-style: none;
+    padding:0;
+    margin:0;
+    line-height:16px;
+}
+
+.markdown-editor-emoji-list ul li {
+    display: inline-block;
+    margin-right:5px;
+}
+
+.markdown-editor-emoji-list ul li img {
+    cursor:pointer;
+}
+
+.file-collection-container .accepted-formats > span:after {
+    content:":"
+}
+
+.file-collection-container .accepted-formats ul {
+    list-style:none;
+    padding:0;
+    margin:0;
+    display:inline-block;
+}
+
+.file-collection-container .accepted-formats ul li {
+    display:inline;
+}
+
+.file-collection-container .accepted-formats ul li:after {
+    content: ",";
+}
+
+.file-collection-container .accepted-formats ul li:last-child:after {
+    content:"";
+}
+
+.file-collection-container .file-collection-list > div[data-prototype] {
+    counter-reset: files;
+}
+
+.file-collection-container .file-collection-list > div[data-prototype] .form-group > label:after {
+    counter-increment: files;
+    content: counter(files);
+    margin-left:3px;
+}

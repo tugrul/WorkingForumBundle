@@ -1,0 +1,18 @@
+
+{% embed '@YosimitsoWorkingForum/Common/Embed/forum_block.html.twig' %}
+
+    {% block forum_block_header %}
+        <h2><a href="{{ path('workingforum_forum', {forumSlug: forum.slug}) }}">{{ forum.name }}</a></h2>
+        {% if forum.description is not null %}
+            <p>{{ forum.description }}</p>
+        {% endif %}
+    {% endblock %}
+
+    {% block forum_block_body %}
+        <table class="table table-bordered">
+        {% include '@YosimitsoWorkingForum/Common/Include/subforum_block.html.twig' %}
+        </table>
+    {% endblock %}
+
+{% endembed %}
+
