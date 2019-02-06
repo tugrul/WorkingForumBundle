@@ -1,0 +1,45 @@
+{% for post in results %}
+    {% set thread = post.thread %}
+    {% set subforum = thread.subforum %}
+    {% set threadPath = path( 'workingforum_thread', {
+        'forumSlug' : subforum.forum.slug,
+        'subforumSlug' : subforum.slug,
+        'threadSlug' : thread.slug,
+        'threadId': thread.id}) %}
+
+    {% embed '@YosimitsoWorkingForum/Common/Embed/search_result_post_list_row.html.twig' %}
+
+
+        {% block thread_flags %}
+            {% if thread.locked %}
+                <span class="fas fa-lock"></span>
+            {% endif %}
+
+            {% if thread.pin %}
+                <span class="fas fa-thumbtack"></span>
+            {% endif %}
+
+            {% if thread.resolved %}
+                <span class="fas fa-check"></span>
+            {% endif %}
+        {% endblock %}
+
+        {% block thread_label %}
+            <a href="{{ threadPath }}">{{ thread.label }}</a>
+        {% endblock %}
+
+        {% block thread_sublabel %}
+            {{ thread.sublabel }}
+        {% endblock %}
+
+        {% block post_content %}
+            {{ post.content | quote | markdown | wf_emoji | raw }}
+        {% endblock %}
+
+        {% block row_actions %}
+            <a class="btn btn-primary btn-sm" href="{{ threadPath }}">{{ 'forum.goto_post' | trans }}</a>
+        {% endblock %}
+
+    {% endembed %}
+
+{% endfor %}

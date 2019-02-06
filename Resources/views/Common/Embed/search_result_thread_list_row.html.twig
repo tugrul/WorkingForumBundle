@@ -1,0 +1,9 @@
+
+<tr {{ html_class_attribute({wf_pin: thread.pin, wf_resolved: thread.resolved}) }}>
+    <td>
+        <div class="thread-flags">{% block thread_flags %}{% endblock %}</div>
+        <div class="thread-label">{% block thread_label %}{% endblock %}</div>
+    </td>
+    <td>{% block thread_sublabel %}{% endblock %}</td>
+    <td>{% block row_actions %}{% endblock %}</td>
+</tr>

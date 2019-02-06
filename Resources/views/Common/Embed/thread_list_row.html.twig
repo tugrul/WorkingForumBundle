@@ -1,11 +1,3 @@
-{% set post = item.post %}
-    {% set thread = post.thread %}
-    {% set threadPath = path( 'workingforum_thread', {
-        'forumSlug' : subforum.forum.slug,
-        'subforumSlug' : subforum.slug,
-        'threadSlug' : thread.slug,
-        'threadId': thread.id}) %}
-
 <tr {{ html_class_attribute({'forum-thread-pin': thread.pin, 'forum-thread-resolved': thread.resolved}) }}>
     <td class="forum-thread-col-info">
         <div class="thread-label">

@@ -1,4 +1,13 @@
 {% for item in postList %}
+
+    {% set post = item.post %}
+    {% set thread = post.thread %}
+    {% set threadPath = path( 'workingforum_thread', {
+        'forumSlug' : subforum.forum.slug,
+        'subforumSlug' : subforum.slug,
+        'threadSlug' : thread.slug,
+        'threadId': thread.id}) %}
+
     {% embed '@YosimitsoWorkingForum/Common/Embed/thread_list_row.html.twig' %}
 
         {% block thread_flags %}

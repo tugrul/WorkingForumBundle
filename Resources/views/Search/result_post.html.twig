@@ -1,0 +1,16 @@
+{% extends '@YosimitsoWorkingForum/Search/search.html.twig' %}
+
+{% block search_result %}
+
+    {% set post_per_page = wf_parameter('post_per_page') %}
+    {% set results = resultsPager.currentPageResults %}
+
+    <h2>{{ 'search.results_for' | trans({'%keywords%' : keywords}) }}</h2>
+
+    {% include '@YosimitsoWorkingForum/Common/Include/search_result_post_list.html.twig' %}
+
+    {% if (resultsPager.haveToPaginate()) %}
+        {{ pagerfanta(resultsPager, 'twitter_bootstrap4') }}
+    {% endif %}
+
+{% endblock %}

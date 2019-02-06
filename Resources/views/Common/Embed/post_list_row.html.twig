@@ -7,7 +7,7 @@
         </div>
     </div>
     <div {{ html_class_attribute({'col': true,
-        'wf-useful-post': (item.voteCount >= voteConfig.threshold_useful_post)}) | raw }}>
+        'wf-useful-post': (item.voteCount >= voteConfig.threshold_useful_post)}) }}>
         <div class="mb-2">
             {{ post.createDate | date }}
         </div>

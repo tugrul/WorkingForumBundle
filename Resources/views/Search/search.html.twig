@@ -15,7 +15,14 @@
         </div>
         <div class="col-md">
             {{ form_row(form.keywords) }}
-            {{ form_row(form.submit) }}
+            <div class="form-row">
+                <div class="col-md">
+                    {{ form_widget(form.target) }}
+                </div>
+                <div class="col-md-auto pt-2">
+                    {{ form_row(form.submit) }}
+                </div>
+            </div>
         </div>
     </div>
 
@@ -23,4 +30,9 @@
 
     {{ form_end(form) }}
 
+    {% block search_result %}
+    {% endblock %}
+
 {% endblock %}
+
+

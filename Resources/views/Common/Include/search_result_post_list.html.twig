@@ -1,0 +1,12 @@
+<table class="table table-bordered forum-search-post-list">
+    <thead>
+    <tr>
+        <th>{{ 'forum.thread_name' | trans }}</th>
+        <th>{{ 'forum.thread_label' | trans }}</th>
+        <th colspan="2">{{ 'forum.post_content' | trans }}</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% include '@YosimitsoWorkingForum/Common/Include/search_result_post_list_loop.html.twig' %}
+    </tbody>
+</table>

@@ -4,7 +4,9 @@ namespace Yosimitso\WorkingForumBundle\Controller;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
-use Knp\Component\Pager\PaginatorInterface;
+use http\Exception\InvalidArgumentException;
+use Pagerfanta\Adapter\DoctrineORMAdapter;
+use Pagerfanta\Pagerfanta;
 use Symfony\Component\Routing\Annotation\Route;
 
 use Symfony\Bundle\FrameworkBundle\Controller\Controller;
@@ -14,7 +16,7 @@ use WhiteOctober\BreadcrumbsBundle\Model\Breadcrumbs;
 use Yosimitso\WorkingForumBundle\Form\SearchType;
 use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
-use Yosimitso\WorkingForumBundle\Entity\{Forum, Subforum, Thread, Post};
+use Yosimitso\WorkingForumBundle\Entity\{Subforum, Thread, Post};
 
 /**
  * Class SearchController
@@ -23,76 +25,122 @@ use Yosimitso\WorkingForumBundle\Entity\{Forum, Subforum, Thread, Post};
  */
 class SearchController extends BaseController
 {
+    protected static $resultTypes = [
+        1 => ['entity' => Thread::class,
+            'view' => '@YosimitsoWorkingForum/Search/result_thread.html.twig'],
+        2 => ['entity' => Post::class,
+            'view' => '@YosimitsoWorkingForum/Search/result_post.html.twig']
+    ];
+
+    /**
+     * @var EntityManagerInterface
+     */
+    protected $entityManager;
+
+    /**
+     * @var Breadcrumbs
+     */
+    protected $breadcrumbs;
+
+    /**
+     * SearchController constructor.
+     * @param EntityManagerInterface $entityManager
+     * @param Breadcrumbs $breadcrumbs
+     */
+    public function __construct(EntityManagerInterface $entityManager, Breadcrumbs $breadcrumbs)
+    {
+        $this->entityManager = $entityManager;
+
+        $this->breadcrumbs = $breadcrumbs;
+    }
+
     /**
      * @param Request $request
-     * @param EntityManagerInterface $entityManager
-     * @param PaginatorInterface $paginator
-     * @param Breadcrumbs $breadcrumbs
      *
      * @Route("/search", name="search")
      *
      * @return Response
      */
-    public function indexAction(Request $request, EntityManagerInterface $entityManager, PaginatorInterface $paginator,
-                                Breadcrumbs $breadcrumbs)
+    public function indexAction(Request $request)
     {
-        $breadcrumbs->addRouteItem('Forum', 'workingforum_index')
+        $this->breadcrumbs->addRouteItem('Forum', 'workingforum_index')
             ->addItem('forum.search_forum');
 
-        $listForum = $entityManager->getRepository(Forum::class)->findAll();
-
-
-        $form = $this->createForm(SearchType::class, [], [
+        $form = $this->createForm(SearchType::class, ['target' => 1], [
             'method' => 'GET',
             'csrf_protection' => false]);
 
         $form->handleRequest($request);
 
+        if ($form->isSubmitted() && $form->isValid()) {
 
-        $viewParams = [
-            'listForum' => $listForum,
+            try {
+                return $this->renderResult($form, $request->query->get('page', 1));
+            } catch (InvalidArgumentException $exception) {
+                $this->addFlash('danger', $exception->getMessage());
+            }
+
+        }
+
+        return $this->render('@YosimitsoWorkingForum/Search/search.html.twig', [
             'form' => $form->createView()
-        ];
-
-        if (!$form->isSubmitted() || !$form->isValid()) {
-            return $this->render('@YosimitsoWorkingForum/Search/search.html.twig', $viewParams);
-        }
-
-        $data = $form->getData();
-
-        $whereSubforum = $this->getAllowedSubforumList($data['forum'])->map(function(Subforum $subforum) {
-            return $subforum->getId();
-        });
-
-        $postListResult = $entityManager->getRepository(Post::class)
-            ->search($data['keywords'], 0, 100, $whereSubforum->toArray());
-
-        if (count($postListResult) === 0) {
-            return $this->render('@YosimitsoWorkingForum/Search/result_empty.html.twig', array_merge($viewParams, [
-                'keywords' => $data['keywords']
-            ]));
-        }
-
-        $postList = $paginator->paginate(
-            $postListResult,
-            $request->query->get('page', 1),
-            $this->getParameter('yosimitso_working_forum.thread_per_page')
-        );
-
-        return $this->render('@YosimitsoWorkingForum/Search/result.html.twig', array_merge($viewParams, [
-            'postList' => $postList,
-            'keywords' => $data['keywords']
-        ]));
+        ]);
     }
 
-    protected function getAllowedSubforumList(ArrayCollection $subforums) : ArrayCollection
+
+    protected function renderResult($form, $currentPage)
     {
-        if ($this->getParameter('yosimitso_working_forum.allow_anonymous_read')) {
-            return $subforums;
+        $data = $form->getData();
+
+        if (empty(self::$resultTypes[$data['target']])) {
+            throw new InvalidArgumentException('Invalid result type');
         }
 
-        return $subforums->filter(function(Subforum $subforum) {
-            return $this->isGranted($subforum->getAllowedRoles());
-        });
+        $resultType = self::$resultTypes[$data['target']];
+
+        $paginator = $this->getPaginator($this->entityManager
+            ->getRepository($resultType['entity']), $data);
+
+        $paginator->setCurrentPage($currentPage);
+
+        $count = $paginator->getNbResults();
+
+        if ($paginator->getNbResults() === 0) {
+            return $this->render('@YosimitsoWorkingForum/Search/result_empty.html.twig', [
+                'form' => $form->createView(),
+                'keywords' => $data['keywords']
+            ]);
+        }
+
+        return $this->render($resultType['view'], [
+            'form' => $form->createView(),
+            'keywords' => $data['keywords'],
+            'resultsPager' => $paginator
+        ]);
+    }
+
+
+    protected function getPaginator($repository, $data)
+    {
+        $keywords = array_filter(array_map('trim', explode(' ', $data['keywords'])));
+
+        $paginator = new Pagerfanta(new DoctrineORMAdapter($repository->search($keywords,
+            $this->getAllowedSubforumList($data['forum']))));
+        $paginator->setMaxPerPage($this->getParameter('yosimitso_working_forum.thread_per_page'));
+
+        return $paginator;
+    }
+
+    protected function getAllowedSubforumList(ArrayCollection $subforums)
+    {
+        if (!$this->getParameter('yosimitso_working_forum.allow_anonymous_read')) {
+            $subforums = $subforums->filter(function(Subforum $subforum) {
+                return $this->isGranted($subforum->getAllowedRoles());
+            });
+        }
+
+        return $subforums->map(function(Subforum $subforum) {
+            return $subforum->getId();
+        })->toArray();
     }
 }

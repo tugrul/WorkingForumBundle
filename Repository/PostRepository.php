@@ -9,6 +9,7 @@ use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\Query\ResultSetMappingBuilder;
 
+use http\Exception\InvalidArgumentException;
 use Yosimitso\WorkingForumBundle\Entity\{Forum, PostReport, PostReportReview, Subforum, Thread, UserInterface};
 
 class PostRepository extends EntityRepository
@@ -154,48 +155,36 @@ class PostRepository extends EntityRepository
         return $this->findOneBy(['user' => $user], ['createDate' => 'DESC']);
     }
 
+
+
     /**
      * @param string  $keywords
-     * @param integer $start
-     * @param integer $limit
      * @param array  $subforums
      *
-     * @return Post[]
+     * @return QueryBuilder
      */
-    public function search($keywords, $start = 0, $limit = 100, array $subforums)
+    public function search(array $keywords, array $subforums)
     {
-        if (empty($subforums)) {
-            return [];
-        }
-
-        $keywords = array_filter(array_map('trim', explode(' ', $keywords)));
-
         if (empty($keywords)) {
-            return [];
+            throw new InvalidArgumentException('no keyword to search');
         }
 
-        $queryBuilder = $this->createQueryBuilder('b');
+        if (empty($subforums)) {
+            throw new InvalidArgumentException('subforum not exist');
+        }
 
-        $queryBuilder
-            ->select('b')
-            ->join('YosimitsoWorkingForumBundle:Thread', 'a', 'WITH', 'a.id = b.thread')
-            ->join('YosimitsoWorkingForumBundle:Subforum','c','WITH','a.subforum = c.id');
-
-        $queryBuilder->where('c.id IN (:subforums)');
-
-        $queryBuilder->setParameter(':subforums', $subforums, Connection::PARAM_STR_ARRAY);
+        $queryBuilder = $this->createQueryBuilder('p')
+            ->join(Thread::class, 't', 'WITH', 'p.thread = t.id')
+            ->where('t.subforum IN (:subforums)')
+            ->setParameter(':subforums', $subforums, Connection::PARAM_STR_ARRAY);
 
         foreach ($keywords as $index => $word) {
-            $queryBuilder->andWhere('(' . implode(' OR ', [
-                    'a.label LIKE :keyword_' . $index,
-                    'a.subLabel LIKE :keyword_' . $index,
-                    'b.content LIKE :keyword_' . $index]) . ')');
 
-            $queryBuilder->setParameter(':keyword_' . $index, '%' . $word . '%');
+            $queryBuilder->andWhere('p.content LIKE :keyword_' . $index)
+                ->setParameter(':keyword_' . $index, '%' . $word . '%');
         }
 
-        return $queryBuilder->setMaxResults($limit)
-            ->getQuery()->getResult();
+        return $queryBuilder;
     }
 
 }

@@ -2,10 +2,12 @@
 
 namespace Yosimitso\WorkingForumBundle\Repository;
 
+use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\NativeQuery;
 
+use http\Exception\InvalidArgumentException;
 use Yosimitso\WorkingForumBundle\Entity\{Forum,Subforum,Post,Thread};
 
 /**
@@ -15,28 +17,6 @@ use Yosimitso\WorkingForumBundle\Entity\{Forum,Subforum,Post,Thread};
  */
 class ThreadRepository extends EntityRepository
 {
-    /**
-     * @param integer $start
-     * @param integer $limit
-     *
-     * @return array
-     */
-    public function getThread($start = 0, $limit = 10)
-    {
-
-        $queryBuilder = $this->getEntityManager()
-            ->createQueryBuilder();
-        $query = $queryBuilder
-            ->select('a')
-            ->addSelect('b')
-            ->from($this->_entityName, 'a')
-            ->join('YosimitsoWorkingForumBundle:Post', 'b', 'WITH', 'a.id = b.thread')
-            ->orderBy('a.note', 'desc')
-            ->setMaxResults($limit)
-            ->getQuery();
-
-        return $query->getScalarResult();
-    }
 
     /**
      * @param Subforum $subforum
@@ -73,5 +53,36 @@ class ThreadRepository extends EntityRepository
         return intval($result);
     }
 
+    /**
+     * @param string  $keywords
+     * @param array  $subforums
+     *
+     * @return QueryBuilder
+     */
+    public function search(array $keywords, array $subforums)
+    {
+        if (empty($keywords)) {
+            throw new InvalidArgumentException('no keyword to search');
+        }
 
+        if (empty($subforums)) {
+            throw new InvalidArgumentException('subforum not exist');
+        }
+
+        $queryBuilder = $this->createQueryBuilder('t')
+            ->where('t.subforum IN (:subforums)')
+            ->setParameter(':subforums', $subforums, Connection::PARAM_STR_ARRAY);
+
+
+        foreach ($keywords as $index => $word) {
+
+            $queryBuilder->andWhere('(' . implode(' OR ', [
+                    't.label LIKE :keyword_' . $index,
+                    't.subLabel LIKE :keyword_' . $index]) . ')');
+
+            $queryBuilder->setParameter(':keyword_' . $index, '%' . $word . '%');
+        }
+
+        return $queryBuilder;
+    }
 }

@@ -60,7 +60,7 @@ class HtmlUtilTwigExtension extends AbstractExtension
     public function getFunctions()
     {
         return [
-            new TwigFunction('html_class_attribute', [$this, 'getHtmlClassAttribute']),
+            new TwigFunction('html_class_attribute', [$this, 'getHtmlClassAttribute'], ['is_safe' => ['html']]),
             new TwigFunction('user_avatar', [$this, 'getUserAvatar']),
             new TwigFunction('user_role', [$this, 'getUserRole']),
             new TwigFunction('wf_is_manager', [$this, 'isManager']),
